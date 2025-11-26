@@ -34,14 +34,13 @@ class DatabaseSeeder extends Seeder
         $admin = User::factory()->create([
             'name'  => 'SAMS Super Admin',
             'email' => 'ahmed.alla56756@gmail.com',
-            'role'  => 'admin',
         ]);
 
-        $centerAdmins = User::factory(3)->create(['role' => 'center_admin']);
-        $teachers     = User::factory(6)->create(['role' => 'teacher']);
-        $assistants   = User::factory(3)->create(['role' => 'assistant']);
-        $parents      = User::factory(5)->create(['role' => 'parent']);
-        $students     = User::factory(20)->create(['role' => 'student']);
+        $centerAdmins = User::factory(3)->create();
+        $teachers     = User::factory(6)->create();
+        $assistants   = User::factory(3)->create();
+        $parents      = User::factory(5)->create();
+        $students     = User::factory(20)->create();
 
         // ---------- CENTERS ----------
         $centers = collect();
