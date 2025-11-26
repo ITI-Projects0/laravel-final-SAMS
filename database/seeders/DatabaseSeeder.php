@@ -16,6 +16,8 @@ use App\Models\ParentStudentLink;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class DatabaseSeeder extends Seeder
 {
@@ -92,7 +94,7 @@ class DatabaseSeeder extends Seeder
                 $groupStudents->push(
                     GroupStudent::factory()->create([
                         'group_id'  => $group->id,
-                        'student_id'=> $student->id,
+                        'student_id' => $student->id,
                         'status'    => 'approved',
                         'is_pay'    => $faker->boolean(70),
                         'joined_at' => $faker->dateTimeBetween('-2 months', 'now'),
@@ -213,5 +215,39 @@ class DatabaseSeeder extends Seeder
                 'details'      => $faker->paragraph(),
             ]);
         }
+
+        // Permissions
+        Permission::firstOrCreate(['name' => 'manage centers']);
+        Permission::firstOrCreate(['name' => 'manage teachers']);
+        Permission::firstOrCreate(['name' => 'manage students']);
+        Permission::firstOrCreate(['name' => 'manage groups']);
+        Permission::firstOrCreate(['name' => 'manage attendance']);
+        Permission::firstOrCreate(['name' => 'manage grades']);
+        Permission::firstOrCreate(['name' => 'view student performance']);
+        Permission::firstOrCreate(['name' => 'use ai analysis']);
+
+        //Roles
+        $admin  = Role::firstOrCreate(['name' => 'admin']);
+        $centerAdmin = Role::firstOrCreate(['name' => 'center_admin']);
+        $teacher = Role::firstOrCreate(['name' => 'teacher']);
+        $assistant   = Role::firstOrCreate(['name' => 'assistant']);
+        $student     = Role::firstOrCreate(['name' => 'student']);
+        $parent      = Role::firstOrCreate(['name' => 'parent']);
+
+        $admin->givePermissionTo(Permission::all());
+
+        $centerAdmin->givePermissionTo(['manage centers', 'manage teachers', 'manage students', 'manage groups', 'manage attendance', 'manage grades', 'view student performance', 'use ai analysis']);
+
+        $teacher->givePermissionTo([
+            'manage groups',
+            'manage attendance',
+            'manage grades',
+            'view student performance',
+            'use ai analysis',
+        ]);
+
+        $assistant->givePermissionTo(['manage attendance','manage groups']);
+
+        $parent->givePermissionTo(['view student performance']);
     }
 }
