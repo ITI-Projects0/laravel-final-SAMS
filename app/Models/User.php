@@ -22,6 +22,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'phone',
+        'status',
     ];
 
     /**
@@ -34,16 +37,45 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'role' => 'string',
+        'status' => 'string',
+    ];
+
+    public function isAdmin(): bool
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->role === 'admin';
+    }
+
+    public function isCenterAdmin(): bool
+    {
+        return $this->role === 'center_admin';
+    }
+
+    public function isTeacher(): bool
+    {
+        return $this->role === 'teacher';
+    }
+
+    public function isAssistant(): bool
+    {
+        return $this->role === 'assistant';
+    }
+
+    public function isStudent(): bool
+    {
+        return $this->role === 'student';
+    }
+
+    public function isParent(): bool
+    {
+        return $this->role === 'parent';
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
     }
 }
