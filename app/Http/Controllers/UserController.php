@@ -18,10 +18,17 @@ class UserController extends Controller
     public function index()
     {
         // return all users as JSON
-        return $this->success(
-            data: User::with('roles:id,name')->get(),
+        try {
+            $users = User::with('roles:id,name')->get();
+            return $this->success(
+            data: $users,
             message: 'Users retrieved successfully.'
         );
+        } catch (\Exception $e) {
+            return $this->error(
+                message: "Somthing went wrong" . $e->getMessage(),
+            );
+        }
     }
 
     /**

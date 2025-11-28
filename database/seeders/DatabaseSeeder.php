@@ -249,6 +249,6 @@ class DatabaseSeeder extends Seeder
 
         $parent->givePermissionTo(['view student performance']);
 
-        User::find(1)->assignRole('admin');
+        User::find(1)->assignRole('admin', 'center_admin');
     }
 }

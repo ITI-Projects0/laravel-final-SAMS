@@ -49,7 +49,7 @@ class AuthController extends Controller
 
         return $this->success(
             data: [
-                'user' => $user->only(['id', 'name', 'email', 'role', 'phone', 'status']),
+                'user' => $user->only(['id', 'name', 'email', 'phone', 'status']),
                 'token' => $token,
             ],
             message: 'Registration successful.',
@@ -92,7 +92,7 @@ class AuthController extends Controller
 
         $user = User::find(Auth::id());
 
-        if ($user->status !== 'active') {
+        if (!$user->hasRole('admin') && $user->status !== 'active') {
             return $this->error('Account is not active.', 403);
         }
 
@@ -102,9 +102,11 @@ class AuthController extends Controller
 
         $token = $user->createToken('sams-app')->plainTextToken;
 
+        $user_roles = $user->getRoleNames();
+
         return $this->success(
             data: [
-                'user' => $user->only(['id', 'name', 'email', 'phone', 'status']),
+                'user' => $user->only(['id', 'name', 'email', 'phone', 'status']) + ['roles' => $user_roles],
                 'token' => $token,
             ],
             message: 'Login successful.'
@@ -188,7 +190,7 @@ class AuthController extends Controller
         return $this->success(
             data: [
                 'token' => $data['token'],
-                'user' => $user->only(['id', 'name', 'email', 'role', 'status', 'is_data_complete']),
+                'user' => $user->only(['id', 'name', 'email', 'status', 'is_data_complete']),
             ],
             message: 'Login successful.'
         );
@@ -196,17 +198,17 @@ class AuthController extends Controller
 
     public function completeProfile(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'phone' => 'required|string',
             'role' => 'required|string|in:student,parent,teacher,center_admin,assistant',
         ]);
 
         $user = User::findOrFail(Auth::id());
         $user->update([
-            'phone' => $request->phone,
-            'role' => $request->role,
+            'phone' => $validated['phone'],
             'is_data_complete' => true,
         ]);
+        $user->assignRole($validated['role']);
 
         return $this->success(
             data: ['user' => $user],
