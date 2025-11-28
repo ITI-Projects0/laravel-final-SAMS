@@ -21,6 +21,13 @@ Route::prefix('auth')->group(function () {
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
+  
+  Route::apiResource('groups', GroupController::class);
+
+    Route::prefix('teachers')->group(function () {
+        Route::get('/', [TeacherController::class, 'index']);
+        Route::get('/{user}', [TeacherController::class, 'show']);
+    });
 
     // User management routes
     Route::apiResource('users', UserController::class)->middleware('role:admin');

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateGroupRequest extends FormRequest
 {
@@ -11,7 +12,7 @@ class UpdateGroupRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -22,7 +23,20 @@ class UpdateGroupRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'subject' => 'required|string|max:100',
+            'center_id' => 'required|exists:centers,id',
+            'teacher_id' => 'required|exists:users,id',
+
+            'join_code' => [
+                'nullable',
+                'string',
+                Rule::unique('groups')->ignore($this->route('group'))
+            ],
+
+            'is_approval_required' => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 }
