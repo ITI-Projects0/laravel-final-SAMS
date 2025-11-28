@@ -94,6 +94,7 @@ class User extends Authenticatable
         return $this->belongsToMany(Group::class, 'group_students')
             ->withPivot('status', 'joined_at')
             ->withTimestamps();
+    }
     public function scopeIncomplete($query)
     {
         return $query->where('is_data_complete', false);

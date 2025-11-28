@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Cache;
 use App\Traits\ApiResponse;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -200,7 +201,7 @@ class AuthController extends Controller
             'role' => 'required|string|in:student,parent,teacher,center_admin,assistant',
         ]);
 
-        $user = Auth::user();
+        $user = User::findOrFail(Auth::id());
         $user->update([
             'phone' => $request->phone,
             'role' => $request->role,
@@ -219,7 +220,7 @@ class AuthController extends Controller
 
         $plainToken = (string) Str::uuid();
 
-        \DB::table('password_reset_tokens')->updateOrInsert(
+        DB::table('password_reset_tokens')->updateOrInsert(
             ['email' => $request->email],
             [
                 'token' => Hash::make($plainToken),
@@ -268,7 +269,7 @@ class AuthController extends Controller
             ],
         ]);
 
-        $record = \DB::table('password_reset_tokens')
+        $record = DB::table('password_reset_tokens')
             ->where('email', $request->email)
             ->first();
 
@@ -284,7 +285,7 @@ class AuthController extends Controller
         $user->password = Hash::make($request->password);
         $user->save();
 
-        \DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
         return $this->success(message: 'Password reset successfully.');
     }
