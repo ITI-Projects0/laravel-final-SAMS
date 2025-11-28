@@ -78,4 +78,16 @@ class User extends Authenticatable
     {
         return $this->status === 'active';
     }
+
+    public function taughtGroups()
+    {
+        return $this->hasMany(Group::class, 'teacher_id');
+    }
+
+    public function groups()
+    {
+        return $this->belongsToMany(Group::class, 'group_students')
+            ->withPivot('status', 'joined_at')
+            ->withTimestamps();
+    }
 }
