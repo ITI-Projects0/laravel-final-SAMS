@@ -1,59 +1,69 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Backend Change Report
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+This document summarizes the recent modifications made to the SAMS Backend (Laravel), specifically focusing on the Authentication Revamp and User Management updates.
 
-## About Laravel
+## 1. Database Schema Changes
+**Migration:** `2025_11_27_035933_add_auth_fields_to_users_table.php`
+Added the following columns to the `users` table:
+- `activation_code` (string, nullable): Stores the code used for email verification.
+- `is_data_complete` (boolean, default: false): Flag to indicate if the user has completed their profile (phone, role, etc.).
+- `google_id` (string, nullable): Stores the Google User ID for OAuth login.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 2. Authentication Logic (`AuthController.php`)
+A comprehensive `AuthController` has been implemented with the following features:
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### Registration & Verification
+- **Register (`POST /api/auth/register`)**:
+  - Creates a user with `status: pending`.
+  - Generates a UUID `activation_code`.
+  - Sends an **Activation Email** and an **Incomplete Profile Warning Email**.
+  - Returns an authentication token immediately.
+- **Verify Email (`POST /api/auth/verify-email`)**:
+  - Accepts `code`.
+  - Verifies the user and updates `status` to `active`.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Login & Security
+- **Login (`POST /api/auth/login`)**:
+  - Validates credentials.
+  - **Check:** Ensures user `status` is `active`.
+  - **Check:** Prevents concurrent logins (returns 403 if user already has an active token).
+- **Logout (`POST /api/auth/logout`)**:
+  - Revokes current access token.
 
-## Learning Laravel
+### Google OAuth
+- **Redirect (`GET /auth/google`)**: Redirects to Google.
+- **Callback (`GET /auth/google/callback`)**:
+  - Handles the response from Google.
+  - Creates a new user if one doesn't exist (with random password).
+  - Updates existing users with `google_id`.
+  - Redirects to the frontend (`/login?token=...`).
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### Profile Management
+- **Complete Profile (`POST /api/auth/complete-profile`)**:
+  - Updates `phone` and `role`.
+  - Sets `is_data_complete` to `true`.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Password Reset
+- **Send Code (`POST /api/auth/send-reset-code`)**: Sends a reset link via email.
+- **Reset Password (`POST /api/auth/reset-password`)**: Verifies token and updates password.
 
-## Laravel Sponsors
+## 3. User Model Updates (`User.php`)
+- **Fillable Fields**: Added `activation_code`, `is_data_complete`, `google_id`.
+- **Helper Methods**: Added `isAdmin()`, `isTeacher()`, `isStudent()`, `isActive()`, etc.
+- **Scopes**: Added `scopeIncomplete()` to easily find users with incomplete profiles.
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## 4. API Routes (`routes/api.php`)
+New routes added under `auth` prefix:
+- `POST /register`
+- `POST /login`
+- `POST /verify-email`
+- `POST /send-reset-code`
+- `POST /reset-password`
+- `POST /complete-profile` (Authenticated)
+- `POST /logout` (Authenticated)
+- `GET /me` (Authenticated)
 
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## 5. Untracked / New Files
+The following new components were added (currently untracked by git):
+- **Mailables**: `ActivationCodeMail`, `IncompleteProfileWarningMail`, `ResetCodeMail`.
+- **Tests**: `tests/Feature/AuthRevampTest.php`.

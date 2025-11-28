@@ -26,6 +26,9 @@ class User extends Authenticatable
         'role',
         'phone',
         'status',
+        'activation_code',
+        'is_data_complete',
+        'google_id',
     ];
 
     /**
@@ -43,6 +46,7 @@ class User extends Authenticatable
         'password' => 'hashed',
         'role' => 'string',
         'status' => 'string',
+        'is_data_complete' => 'boolean',
     ];
 
     public function isAdmin(): bool
@@ -78,5 +82,10 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    public function scopeIncomplete($query)
+    {
+        return $query->where('is_data_complete', false);
     }
 }

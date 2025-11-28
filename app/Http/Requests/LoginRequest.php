@@ -14,15 +14,17 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email'    => ['required', 'email'],
-            'password' => ['required'],
+            'email'    => ['required', 'string', 'email:rfc'],
+            'password' => ['required', 'string', 'min:8'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'email.required' => 'البريد الإلكتروني مطلوب',
+            'email.required' => 'The email field is required',
+            'password.required' => 'The password field is required',
+            'password.min' => 'Password must be at least 8 characters.',
         ];
     }
 }
