@@ -109,7 +109,7 @@ class AuthController extends Controller
 
         return $this->success(
             data: [
-                'user' => $user->only(['id', 'name', 'email', 'phone', 'status']) + ['roles' => $user_roles],
+                'user' => $user->only(['id', 'name', 'email', 'phone', 'status', 'is_data_complete']) + ['roles' => $user_roles],
                 'token' => $token,
             ],
             message: 'Login successful.'
