@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\GroupController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\TeacherController;
 use App\Http\Controllers\UserController;
 
 Route::prefix('auth')->group(function () {
@@ -21,8 +23,7 @@ Route::prefix('auth')->group(function () {
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
-  
-  Route::apiResource('groups', GroupController::class);
+
 
     Route::prefix('teachers')->group(function () {
         Route::get('/', [TeacherController::class, 'index']);
@@ -31,6 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // User management routes
     Route::apiResource('users', UserController::class)->middleware('role:admin');
+    Route::apiResource('groups', GroupController::class);
 
     // adding or removing roles from user
     Route::post('/users/{user}/roles', [UserController::class, 'assignRole'])->middleware('role:admin');
