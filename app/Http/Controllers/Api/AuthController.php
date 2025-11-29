@@ -96,9 +96,12 @@ class AuthController extends Controller
             return $this->error('Account is not active.', 403);
         }
 
-        if ($user->tokens()->count()) {
-            return $this->error('User is already logged in from another device.', 403);
-        }
+        // if ($user->tokens()->count()) {
+        //     return $this->error('User is already logged in from another device.', 403);
+        // }
+
+        // Invalidate existing tokens to allow new login
+        $user->tokens()->delete();
 
         $token = $user->createToken('sams-app')->plainTextToken;
 
