@@ -12,18 +12,12 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 use App\Mail\ActivationCodeMail;
-use App\Mail\IncompleteProfileWarningMail;
 use App\Mail\ResetCodeMail;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\Support\Facades\Cache;
-use App\Traits\ApiResponse;
-use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
-    use ApiResponse;
-
     public function register(RegisterRequest $request)
     {
         $validated = $request->validated();
@@ -35,26 +29,24 @@ class AuthController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'activation_code' => $activationCode,
-            'is_data_complete' => false,
-            'status' => 'pending',
+            'status' => 'active',
         ]);
 
-        // Send Activation Code
-        Mail::to($user->email)->send(new ActivationCodeMail($user, $activationCode));
+        $user->assignRole('center_admin', 'teacher');
 
-        // Send Incomplete Profile Warning
-        Mail::to($user->email)->send(new IncompleteProfileWarningMail($user));
+        // Send Activation Code
+        Mail::to($user->email)->sendNow(new ActivationCodeMail($user, $activationCode));
 
         $token = $user->createToken('sams-app')->plainTextToken;
 
-        return $this->success(
-            data: [
-                'user' => $user->only(['id', 'name', 'email', 'phone', 'status']),
-                'token' => $token,
-            ],
-            message: 'Registration successful.',
-            status: 201
-        );
+        return response()->json([
+            'message' => 'Registration successful. Please check your email for the activation code.',
+            'user' => array_merge(
+                $user->only(['id', 'name', 'email', 'phone', 'status']),
+                ['roles' => $user->getRoleNames()]
+            ),
+            'token' => $token,
+        ], 201);
     }
 
     public function verifyEmail(Request $request)
@@ -66,11 +58,11 @@ class AuthController extends Controller
         $user = User::where('activation_code', $request->code)->first();
 
         if (!$user) {
-            return $this->error('Activation link is invalid or has already been used.', 404);
+            return response()->json(['message' => 'Activation link is invalid or has already been used.'], 404);
         }
 
         if ($user->email_verified_at) {
-            return $this->success(message: 'Email is already verified.');
+            return response()->json(['message' => 'Email is already verified.']);
         }
 
         $user->email_verified_at = now();
@@ -78,55 +70,10 @@ class AuthController extends Controller
         $user->status = 'active';
         $user->save();
 
-        return $this->success(
-            data: ['user' => $user->only(['id', 'name', 'email', 'status'])],
-            message: 'Email verified successfully.'
-        );
-    }
-
-    public function login(LoginRequest $request)
-    {
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            return $this->error('The provided credentials are incorrect.', 401);
-        }
-
-        $user = User::find(Auth::id());
-
-        if (!$user->hasRole('admin') && $user->status !== 'active') {
-            return $this->error('Account is not active.', 403);
-        }
-
-        // if ($user->tokens()->count()) {
-        //     return $this->error('User is already logged in from another device.', 403);
-        // }
-
-        // Invalidate existing tokens to allow new login
-        $user->tokens()->delete();
-
-        $token = $user->createToken('sams-app')->plainTextToken;
-
-        $user_roles = $user->getRoleNames();
-
-        return $this->success(
-            data: [
-                'user' => $user->only(['id', 'name', 'email', 'phone', 'status', 'is_data_complete']) + ['roles' => $user_roles],
-                'token' => $token,
-            ],
-            message: 'Login successful.'
-        );
-    }
-
-    public function logout()
-    {
-        $user = User::findOrFail(Auth::id());
-        $user->tokens()->delete();
-
-        return $this->success(message: 'Logout successful.');
-    }
-
-    public function me()
-    {
-        return $this->success(data: Auth::user());
+        return response()->json([
+            'message' => 'Email verified successfully.',
+            'user' => $user->only(['id', 'name', 'email', 'status']),
+        ]);
     }
 
     public function googleRedirect()
@@ -139,7 +86,7 @@ class AuthController extends Controller
         try {
             $googleUser = Socialite::driver('google')->user();
         } catch (\Exception $e) {
-            return $this->error('Google login failed.', 400);
+            return response()->json(['message' => 'Google login failed.'], 400);
         }
 
         $user = User::where('email', $googleUser->getEmail())->first();
@@ -148,75 +95,104 @@ class AuthController extends Controller
             $user = User::create([
                 'name' => $googleUser->getName(),
                 'email' => $googleUser->getEmail(),
-                'password' => Hash::make(Str::random(16)),
+                'password' => Hash::make(Str::random(16)), // Random password
                 'google_id' => $googleUser->getId(),
                 'email_verified_at' => now(),
                 'status' => 'active',
-                'is_data_complete' => false,
             ]);
-
-            Mail::to($user->email)->send(new IncompleteProfileWarningMail($user));
+            $user->assignRole('center_admin', 'teacher');
         } else {
+            // Update google_id if not set
             if (!$user->google_id) {
                 $user->google_id = $googleUser->getId();
                 $user->save();
             }
+
+            // Ensure user has a role (fix for existing users with no role)
+            if ($user->getRoleNames()->isEmpty()) {
+                $user->assignRole('center_admin', 'teacher');
+            }
         }
 
-        $token = $user->createToken('sams-app')->plainTextToken;
+        // Generate a short-lived exchange token
+        $exchangeToken = Str::random(40);
+        \Cache::put('auth_exchange_' . $exchangeToken, $user->id, 60); // Valid for 60 seconds
 
-        // SECURE: Generate a short-lived code to exchange for the token
-        $exchangeCode = Str::random(40);
-        Cache::put('auth_exchange_' . $exchangeCode, [
-            'token' => $token,
-            'user_id' => $user->id
-        ], now()->addMinutes(1));
-
-        $frontendUrl = config('app.frontend_url', 'http://localhost:4200');
-        $queryParams = http_build_query(['code' => $exchangeCode]);
-
+        // Redirect to frontend with exchange token
+        $frontendUrl = config('app.frontend_url', 'http://localhost:35045');
+        $queryParams = http_build_query(['exchange_token' => $exchangeToken]);
         return redirect()->to("{$frontendUrl}/login?{$queryParams}");
     }
 
     public function exchangeToken(Request $request)
     {
-        $request->validate(['code' => 'required|string']);
+        $request->validate(['exchange_token' => 'required|string']);
 
-        $data = Cache::pull('auth_exchange_' . $request->code);
+        $userId = \Cache::pull('auth_exchange_' . $request->exchange_token);
 
-        if (!$data) {
-            return $this->error('Invalid or expired exchange code.', 400);
+        if (!$userId) {
+            return response()->json(['message' => 'Invalid or expired exchange token.'], 400);
         }
 
-        $user = User::find($data['user_id']);
+        $user = User::find($userId);
+        if (!$user) {
+             return response()->json(['message' => 'User not found.'], 404);
+        }
 
-        return $this->success(
-            data: [
-                'token' => $data['token'],
-                'user' => $user->only(['id', 'name', 'email', 'status', 'is_data_complete']),
-            ],
-            message: 'Login successful.'
-        );
+        $token = $user->createToken('sams-app')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login successful.',
+            'user' => array_merge(
+                $user->only(['id', 'name', 'email', 'phone', 'status']),
+                ['roles' => $user->getRoleNames()]
+            ),
+            'token' => $token,
+        ]);
     }
 
-    public function completeProfile(Request $request)
+    public function login(LoginRequest $request)
     {
-        $validated = $request->validate([
-            'phone' => 'required|string',
-            'role' => 'required|string|in:student,parent,teacher,center_admin,assistant',
-        ]);
+        $user = Auth::attempt($request->only('email', 'password'));
 
-        $user = User::findOrFail(Auth::id());
-        $user->update([
-            'phone' => $validated['phone'],
-            'is_data_complete' => true,
-        ]);
-        $user->assignRole($validated['role']);
+        if (!$user) {
+            return response()->json(['message' => 'The provided credentials are incorrect.'], 401);
+        }
 
-        return $this->success(
-            data: ['user' => $user],
-            message: 'Profile completed successfully.'
-        );
+        $user = User::find(Auth::id());
+
+        if ($user->status !== 'active') {
+            return response()->json(['message' => 'Account is not active.'], 403);
+        }
+
+
+
+        $token = $user->createToken('sams-app')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login successful.',
+            'user' => array_merge(
+                $user->only(['id', 'name', 'email', 'phone', 'status']),
+                ['roles' => $user->getRoleNames()]
+            ),
+            'token' => $token,
+        ]);
+    }
+
+    public function logout(Request $request)
+    {
+        // Revoke the token that was used to authenticate the current request
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json(['message' => 'Logout successful.']);
+    }
+    public function me()
+    {
+        $user = Auth::user();
+        return response()->json(array_merge(
+            $user->only(['id', 'name', 'email', 'phone', 'status']),
+            ['roles' => $user->getRoleNames()]
+        ));
     }
 
     public function sendResetCode(Request $request)
@@ -225,7 +201,7 @@ class AuthController extends Controller
 
         $plainToken = (string) Str::uuid();
 
-        DB::table('password_reset_tokens')->updateOrInsert(
+        \DB::table('password_reset_tokens')->updateOrInsert(
             ['email' => $request->email],
             [
                 'token' => Hash::make($plainToken),
@@ -233,32 +209,26 @@ class AuthController extends Controller
             ]
         );
 
-        // SECURE: Generate a short-lived exchange code
-        $exchangeCode = Str::random(40);
-        Cache::put('password_reset_exchange_' . $exchangeCode, [
-            'email' => $request->email,
-            'token' => $plainToken
-        ], now()->addMinutes(30));
+        Mail::to($request->email)->send(new ResetCodeMail($plainToken, $request->email));
 
-        Mail::to($request->email)->send(new ResetCodeMail($exchangeCode));
-
-        return $this->success(message: 'Password reset link has been emailed to you.');
+        return response()->json(['message' => 'Password reset link has been emailed to you.']);
     }
 
+    // New endpoint to validate reset code and return a token for password reset
     public function validateResetCode(Request $request)
     {
-        $request->validate(['code' => 'required|string']);
+        $request->validate([
+            'code' => ['required', 'string'],
+        ]);
 
-        $data = Cache::get('password_reset_exchange_' . $request->code);
-
-        if (!$data) {
-            return $this->error('Invalid or expired reset link.', 400);
+        // Find a matching record where the hashed token matches the provided code
+        $record = \DB::table('password_reset_tokens')->where('created_at', '>=', now()->subMinutes(30))->first();
+        if (!$record || !\Hash::check($request->code, $record->token)) {
+            return response()->json(['message' => 'Invalid or expired reset code.'], 400);
         }
 
-        return $this->success(data: [
-            'email' => $data['email'],
-            'token' => $data['token']
-        ]);
+        // Return the plain code as a token that can be used in resetPassword
+        return response()->json(['data' => ['token' => $request->code]]);
     }
 
     public function resetPassword(Request $request)
@@ -274,24 +244,25 @@ class AuthController extends Controller
             ],
         ]);
 
-        $record = DB::table('password_reset_tokens')
+        $record = \DB::table('password_reset_tokens')
             ->where('email', $request->email)
             ->first();
 
         if (!$record || !Hash::check($request->token, $record->token)) {
-            return $this->error('Invalid or expired reset link.', 400);
+            return response()->json(['message' => 'Invalid or expired reset link.'], 400);
         }
 
         if (now()->diffInMinutes($record->created_at) > 30) {
-            return $this->error('Reset link expired.', 400);
+            return response()->json(['message' => 'Reset link expired.'], 400);
         }
 
         $user = User::where('email', $request->email)->first();
         $user->password = Hash::make($request->password);
         $user->save();
 
-        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+        // Delete token
+        \DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
-        return $this->success(message: 'Password reset successfully.');
+        return response()->json(['message' => 'Password reset successfully.']);
     }
 }

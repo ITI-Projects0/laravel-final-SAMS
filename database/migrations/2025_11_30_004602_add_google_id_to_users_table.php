@@ -12,17 +12,17 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('activation_code')->nullable()->after('password');
+            $table->string('google_id')->nullable()->after('email');
         });
     }
 
     /**
-     * Reverse the migrations. migrations.
+     * Reverse the migrations.
      */
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['activation_code', 'google_id']);
+            $table->dropColumn('google_id');
         });
     }
 };

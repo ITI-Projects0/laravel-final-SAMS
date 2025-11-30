@@ -27,7 +27,6 @@ class User extends Authenticatable
         'phone',
         'status',
         'activation_code',
-        'is_data_complete',
         'google_id',
     ];
 
@@ -46,7 +45,6 @@ class User extends Authenticatable
         'password' => 'hashed',
         'role' => 'string',
         'status' => 'string',
-        'is_data_complete' => 'boolean',
     ];
 
     public function isAdmin(): bool
@@ -95,8 +93,9 @@ class User extends Authenticatable
             ->withPivot('status', 'joined_at')
             ->withTimestamps();
     }
-    public function scopeIncomplete($query)
+
+    public function center()
     {
-        return $query->where('is_data_complete', false);
+        return $this->hasOne(Center::class);
     }
 }
