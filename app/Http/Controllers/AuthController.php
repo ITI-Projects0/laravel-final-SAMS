@@ -13,40 +13,51 @@ use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 use App\Mail\ActivationCodeMail;
 use App\Mail\ResetCodeMail;
+use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
     public function register(RegisterRequest $request)
     {
-        $validated = $request->validated();
+        try {
+            $validated = $request->validated();
 
-        $activationCode = (string) Str::uuid();
+            $activationCode = (string) Str::uuid();
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'activation_code' => $activationCode,
-            'status' => 'active',
-        ]);
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'activation_code' => $activationCode,
+                'status' => 'active',
+            ]);
 
-        $user->assignRole('center_admin', 'teacher');
+            $user->assignRole('center_admin', 'teacher');
 
-        // Send Activation Code
-        Mail::to($user->email)->sendNow(new ActivationCodeMail($user, $activationCode));
+            // Send Activation Code
+            Mail::to($user->email)->queue(new ActivationCodeMail($user, $activationCode));
 
-        $token = $user->createToken('sams-app')->plainTextToken;
+            $token = $user->createToken('sams-app')->plainTextToken;
 
-        return response()->json([
-            'message' => 'Registration successful. Please check your email for the activation code.',
-            'user' => array_merge(
-                $user->only(['id', 'name', 'email', 'phone', 'status']),
-                ['roles' => $user->getRoleNames()]
-            ),
-            'token' => $token,
-        ], 201);
+            return response()->json([
+                'message' => 'Registration successful. Please check your email for the activation code.',
+                'user' => array_merge(
+                    $user->only(['id', 'name', 'email', 'phone', 'status']),
+                    ['roles' => $user->getRoleNames()]
+                ),
+                'token' => $token,
+            ], 201);
+        } catch(\Exception $e) {
+            return $this->error(
+                message: $e->getMessage(),
+                errors: $e->getMessage(),
+            );
+        }
+
     }
 
     public function verifyEmail(Request $request)
@@ -83,10 +94,18 @@ class AuthController extends Controller
 
     public function googleCallback()
     {
+        $guard = config('permission.defaults.guard', 'api');
+        $roleNames = ['center_admin', 'teacher'];
+
         try {
             $googleUser = Socialite::driver('google')->user();
         } catch (\Exception $e) {
             return response()->json(['message' => 'Google login failed.'], 400);
+        }
+
+        // Ensure roles exist for this guard to prevent guard mismatch errors
+        foreach ($roleNames as $roleName) {
+            Role::firstOrCreate(['name' => $roleName, 'guard_name' => $guard]);
         }
 
         $user = User::where('email', $googleUser->getEmail())->first();
@@ -100,23 +119,20 @@ class AuthController extends Controller
                 'email_verified_at' => now(),
                 'status' => 'active',
             ]);
-            $user->assignRole('center_admin', 'teacher');
         } else {
             // Update google_id if not set
             if (!$user->google_id) {
                 $user->google_id = $googleUser->getId();
                 $user->save();
             }
-
-            // Ensure user has a role (fix for existing users with no role)
-            if ($user->getRoleNames()->isEmpty()) {
-                $user->assignRole('center_admin', 'teacher');
-            }
         }
+
+        // Sync roles with correct guard
+        $user->syncRoles($roleNames);
 
         // Generate a short-lived exchange token
         $exchangeToken = Str::random(40);
-        \Cache::put('auth_exchange_' . $exchangeToken, $user->id, 60); // Valid for 60 seconds
+        Cache::put('auth_exchange_' . $exchangeToken, $user->id, 60); // Valid for 60 seconds
 
         // Redirect to frontend with exchange token
         $frontendUrl = config('app.frontend_url', 'http://localhost:35045');
@@ -128,7 +144,7 @@ class AuthController extends Controller
     {
         $request->validate(['exchange_token' => 'required|string']);
 
-        $userId = \Cache::pull('auth_exchange_' . $request->exchange_token);
+        $userId = Cache::pull('auth_exchange_' . $request->exchange_token);
 
         if (!$userId) {
             return response()->json(['message' => 'Invalid or expired exchange token.'], 400);
@@ -136,7 +152,7 @@ class AuthController extends Controller
 
         $user = User::find($userId);
         if (!$user) {
-             return response()->json(['message' => 'User not found.'], 404);
+            return response()->json(['message' => 'User not found.'], 404);
         }
 
         $token = $user->createToken('sams-app')->plainTextToken;
@@ -188,7 +204,7 @@ class AuthController extends Controller
     }
     public function me()
     {
-        $user = Auth::user();
+        $user = User::findOrFail(Auth::id());
         return response()->json(array_merge(
             $user->only(['id', 'name', 'email', 'phone', 'status']),
             ['roles' => $user->getRoleNames()]
@@ -201,7 +217,7 @@ class AuthController extends Controller
 
         $plainToken = (string) Str::uuid();
 
-        \DB::table('password_reset_tokens')->updateOrInsert(
+        DB::table('password_reset_tokens')->updateOrInsert(
             ['email' => $request->email],
             [
                 'token' => Hash::make($plainToken),
@@ -209,7 +225,8 @@ class AuthController extends Controller
             ]
         );
 
-        Mail::to($request->email)->send(new ResetCodeMail($plainToken, $request->email));
+        // Queue reset mail to keep request fast
+        Mail::to($request->email)->queue(new ResetCodeMail($plainToken, $request->email));
 
         return response()->json(['message' => 'Password reset link has been emailed to you.']);
     }
@@ -222,8 +239,8 @@ class AuthController extends Controller
         ]);
 
         // Find a matching record where the hashed token matches the provided code
-        $record = \DB::table('password_reset_tokens')->where('created_at', '>=', now()->subMinutes(30))->first();
-        if (!$record || !\Hash::check($request->code, $record->token)) {
+        $record = DB::table('password_reset_tokens')->where('created_at', '>=', now()->subMinutes(30))->first();
+        if (!$record || !Hash::check($request->code, $record->token)) {
             return response()->json(['message' => 'Invalid or expired reset code.'], 400);
         }
 
@@ -244,7 +261,7 @@ class AuthController extends Controller
             ],
         ]);
 
-        $record = \DB::table('password_reset_tokens')
+        $record = DB::table('password_reset_tokens')
             ->where('email', $request->email)
             ->first();
 
@@ -261,7 +278,7 @@ class AuthController extends Controller
         $user->save();
 
         // Delete token
-        \DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
         return response()->json(['message' => 'Password reset successfully.']);
     }

@@ -28,7 +28,7 @@ return [
 
     ],
     'defaults' => [
-        'guard' => 'web',
+        'guard' => 'api',
     ],
 
     'table_names' => [

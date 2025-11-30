@@ -31,10 +31,11 @@ class DatabaseSeeder extends Seeder
         $faker = fake();
 
         // ---------- USERS ----------
-        $admin = User::factory()->create([
-            'name'  => 'SAMS Super Admin',
-            'email' => 'ahmed.alla56756@gmail.com',
-        ]);
+        // $admin = User::factory()->create([
+        //     'name'  => 'SAMS Super Admin',
+        //     'email' => 'ahmed.alla56756@gmail.com',
+        //     'status' => 'active',
+        // ]);
 
         $centerAdmins = User::factory(3)->create();
         $teachers     = User::factory(6)->create();
@@ -216,22 +217,22 @@ class DatabaseSeeder extends Seeder
         }
 
         // Permissions
-        Permission::firstOrCreate(['name' => 'manage centers']);
-        Permission::firstOrCreate(['name' => 'manage teachers']);
-        Permission::firstOrCreate(['name' => 'manage students']);
-        Permission::firstOrCreate(['name' => 'manage groups']);
-        Permission::firstOrCreate(['name' => 'manage attendance']);
-        Permission::firstOrCreate(['name' => 'manage grades']);
-        Permission::firstOrCreate(['name' => 'view student performance']);
-        Permission::firstOrCreate(['name' => 'use ai analysis']);
+        Permission::firstOrCreate(['name' => 'manage centers', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage teachers', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage students', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage groups', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage attendance', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage grades', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'view student performance', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'use ai analysis', 'guard_name' => 'api']);
 
         //Roles
-        $admin  = Role::firstOrCreate(['name' => 'admin']);
-        $centerAdmin = Role::firstOrCreate(['name' => 'center_admin']);
-        $teacher = Role::firstOrCreate(['name' => 'teacher']);
-        $assistant   = Role::firstOrCreate(['name' => 'assistant']);
-        $student     = Role::firstOrCreate(['name' => 'student']);
-        $parent      = Role::firstOrCreate(['name' => 'parent']);
+        $admin  = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'api']);
+        $centerAdmin = Role::firstOrCreate(['name' => 'center_admin', 'guard_name' => 'api']);
+        $teacher = Role::firstOrCreate(['name' => 'teacher', 'guard_name' => 'api']);
+        $assistant   = Role::firstOrCreate(['name' => 'assistant', 'guard_name' => 'api']);
+        $student     = Role::firstOrCreate(['name' => 'student', 'guard_name' => 'api']);
+        $parent      = Role::firstOrCreate(['name' => 'parent', 'guard_name' => 'api']);
 
         $admin->givePermissionTo(Permission::all());
 
@@ -249,6 +250,6 @@ class DatabaseSeeder extends Seeder
 
         $parent->givePermissionTo(['view student performance']);
 
-        User::find(1)->assignRole('admin','center_admin');
+        // User::find(1)->assignRole('admin');
     }
 }

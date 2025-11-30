@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -14,7 +15,6 @@ Route::get('/verify-email', function () {
     return view('auth.verify-email');
 });
 
-use App\Http\Controllers\Api\AuthController;
 
 Route::get('/auth/google', [AuthController::class, 'googleRedirect']);
 Route::get('/auth/google/callback', [AuthController::class, 'googleCallback']);

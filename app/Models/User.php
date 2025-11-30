@@ -29,6 +29,7 @@ class User extends Authenticatable
         'activation_code',
         'google_id',
     ];
+    protected $guard_name = 'api';
 
     /**
      * The attributes that should be hidden for serialization.
