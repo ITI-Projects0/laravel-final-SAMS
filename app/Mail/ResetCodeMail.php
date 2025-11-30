@@ -13,14 +13,16 @@ class ResetCodeMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public string $code;
+    public string $token;
+    public string $email;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(string $code)
+    public function __construct(string $token, string $email)
     {
-        $this->code = $code;
+        $this->token = $token;
+        $this->email = $email;
     }
 
     /**
