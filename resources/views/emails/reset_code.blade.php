@@ -1,148 +1,39 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<html lang="en">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta charset="UTF-8">
     <title>Reset your SAMS password</title>
-    <style type="text/css">
-        /* Reset styles */
-        body,
-        table,
-        td,
-        a {
-            -webkit-text-size-adjust: 100%;
-            -ms-text-size-adjust: 100%;
-        }
-
-        table,
-        td {
-            mso-table-lspace: 0pt;
-            mso-table-rspace: 0pt;
-        }
-
-        img {
-            -ms-interpolation-mode: bicubic;
-            border: 0;
-            height: auto;
-            line-height: 100%;
-            outline: none;
-            text-decoration: none;
-        }
-
-        table {
-            border-collapse: collapse !important;
-        }
-
-        body {
-            height: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-            font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
-        }
-
-        /* Mobile styles */
-        @media screen and (max-width: 600px) {
-            .email-container {
-                width: 100% !important;
-                margin: auto !important;
-            }
-
-            .fluid-img {
-                width: 100% !important;
-                max-width: 100% !important;
-                height: auto !important;
-            }
-
-            .stack-column {
-                display: block !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                direction: ltr !important;
-            }
-
-            .mobile-padding {
-                padding-left: 20px !important;
-                padding-right: 20px !important;
-            }
-
-            .mobile-font {
-                font-size: 24px !important;
-            }
-        }
-    </style>
-    <!--[if gte mso 9]>
-    <xml>
-        <o:OfficeDocumentSettings>
-            <o:AllowPNG/>
-            <o:PixelsPerInch>96</o:PixelsPerInch>
-        </o:OfficeDocumentSettings>
-    </xml>
-    <![endif]-->
 </head>
 
-<body style="margin: 0; padding: 0; background-color: #0f172a;">
-    <center>
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"
-            style="background-color: #0f172a;">
-            <tr>
-                <td style="padding: 40px 10px;">
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600"
-                        class="email-container"
-                        style="background-color: #1e293b; border-radius: 16px; overflow: hidden; margin: auto; border: 1px solid #334155;">
-                        
-                        <!-- Header -->
-                        <tr>
-                            <td style="padding: 40px 40px 20px 40px; text-align: center;" class="mobile-padding">
-                                <h2 style="margin: 0; color: #38bdf8; font-size: 24px; font-weight: 700; letter-spacing: 2px;">SAMS</h2>
-                            </td>
-                        </tr>
-
-                        <!-- Body -->
-                        <tr>
-                            <td style="padding: 0 40px 40px 40px; text-align: center;" class="mobile-padding">
-                                <h1 class="mobile-font" style="margin: 0 0 20px 0; font-size: 32px; font-weight: 600; color: #f1f5f9;">
-                                    Password Reset
-                                </h1>
-                                <p style="margin: 0 0 30px 0; font-size: 16px; line-height: 1.6; color: #cbd5e1;">
-                                    We received a request to reset your password. Click the button below to create a new one.
-                                </p>
-
-                                <!-- Button -->
-                                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: auto;">
-                                    <tr>
-                                        <td style="border-radius: 50px; background: #38bdf8;">
-                                            <a href="{{ config('app.frontend_url') }}/reset-password?code={{ urlencode($code) }}"
-                                                style="background: #38bdf8; border: 1px solid #38bdf8; font-family: sans-serif; font-size: 16px; line-height: 1.1; text-align: center; text-decoration: none; display: block; border-radius: 50px; font-weight: bold; padding: 16px 32px; color: #0f172a;">
-                                                <span style="color:#0f172a;">Reset Password</span>
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
-
-                                <p style="margin: 40px 0 0 0; font-size: 14px; line-height: 1.5; color: #64748b;">
-                                    This link expires in 30 minutes. If you didn't request a password reset, you can safely ignore this email.
-                                </p>
-                            </td>
-                        </tr>
-
-                        <!-- Footer -->
-                        <tr>
-                            <td style="padding: 20px; background-color: #0f172a; text-align: center; border-top: 1px solid #334155;">
-                                <p style="margin: 0; font-size: 12px; color: #64748b;">
-                                    &copy; {{ date('Y') }} SAMS. All rights reserved.
-                                </p>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </center>
+<body style="margin:0;padding:24px;background-color:#0f172a;font-family:'Segoe UI',Arial,sans-serif;color:#f8fafc;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="520" cellpadding="0" cellspacing="0"
+                    style="background:#0b1120;border-radius:24px;padding:40px 32px;border:1px solid rgba(148,163,184,0.2);">
+                    <tr>
+                        <td style="text-align:center;">
+                            <p style="font-size:14px;letter-spacing:0.2em;color:#38bdf8;margin:0 0 16px;">SAMS</p>
+                            <h1 style="font-size:24px;margin:0 0 16px;color:#f1f5f9;">Password reset</h1>
+                            <p style="font-size:15px;line-height:1.7;color:#cbd5f5;margin:0 0 24px;">
+                                We received a request to reset the password for {{ $email }}. Click the button below to choose
+                                a new one.
+                            </p>
+                            <a href="{{ config('app.frontend_url') }}/reset-password?token={{ urlencode($token) }}&email={{ urlencode($email) }}"
+                                style="display:inline-block;padding:14px 32px;background:#38bdf8;color:#0f172a;text-decoration:none;border-radius:16px;font-weight:600;box-shadow:0 15px 30px rgba(56,189,248,0.35);">
+                                Create a new password
+                            </a>
+                            <p style="font-size:12px;color:#94a3b8;margin:32px 0 0;">
+                                This secure link expires in 30 minutes. If you didn't ask for this, just ignore this email—your
+                                password won't change.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 
 </html>

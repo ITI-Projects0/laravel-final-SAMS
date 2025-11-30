@@ -1,158 +1,41 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<html lang="en">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta charset="UTF-8">
     <title>Activate your SAMS account</title>
-    <style type="text/css">
-        /* Reset styles */
-        body,
-        table,
-        td,
-        a {
-            -webkit-text-size-adjust: 100%;
-            -ms-text-size-adjust: 100%;
-        }
-
-        table,
-        td {
-            mso-table-lspace: 0pt;
-            mso-table-rspace: 0pt;
-        }
-
-        img {
-            -ms-interpolation-mode: bicubic;
-            border: 0;
-            height: auto;
-            line-height: 100%;
-            outline: none;
-            text-decoration: none;
-        }
-
-        table {
-            border-collapse: collapse !important;
-        }
-
-        body {
-            height: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            width: 100% !important;
-            font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
-            background-color: #f8fafc;
-            color: #1e293b;
-        }
-
-        /* Mobile styles */
-        @media screen and (max-width: 600px) {
-            .email-container {
-                width: 100% !important;
-                margin: auto !important;
-            }
-
-            .fluid-img {
-                width: 100% !important;
-                max-width: 100% !important;
-                height: auto !important;
-            }
-
-            .stack-column {
-                display: block !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                direction: ltr !important;
-            }
-
-            .mobile-padding {
-                padding-left: 20px !important;
-                padding-right: 20px !important;
-            }
-
-            .mobile-font {
-                font-size: 24px !important;
-            }
-        }
-    </style>
-    <!--[if gte mso 9]>
-    <xml>
-        <o:OfficeDocumentSettings>
-            <o:AllowPNG/>
-            <o:PixelsPerInch>96</o:PixelsPerInch>
-        </o:OfficeDocumentSettings>
-    </xml>
-    <![endif]-->
 </head>
 
-<body style="margin: 0; padding: 0; background-color: #f8fafc;">
-    <center>
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"
-            style="background-color: #f8fafc;">
-            <tr>
-                <td style="padding: 40px 10px;">
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600"
-                        class="email-container"
-                        style="background-color: #ffffff; border-radius: 16px; overflow: hidden; margin: auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);">
-
-                        <!-- Header -->
-                        <tr>
-                            <td style="padding: 40px 40px 20px 40px; text-align: center;" class="mobile-padding">
-                                <h2
-                                    style="margin: 0; color: #7c3aed; font-size: 24px; font-weight: 700; letter-spacing: 2px;">
-                                    SAMS</h2>
-                            </td>
-                        </tr>
-
-                        <!-- Body -->
-                        <tr>
-                            <td style="padding: 0 40px 40px 40px; text-align: center;" class="mobile-padding">
-                                <h1 class="mobile-font"
-                                    style="margin: 0 0 20px 0; font-size: 32px; font-weight: 600; color: #1e293b;">
-                                    Welcome, {{ $user->name }}!
-                                </h1>
-                                <p style="margin: 0 0 30px 0; font-size: 16px; line-height: 1.6; color: #64748b;">
-                                    We're excited to have you on board. Please activate your account to get started.
-                                </p>
-
-                                <!-- Button -->
-                                <table role="presentation" cellspacing="0" cellpadding="0" border="0"
-                                    style="margin: auto;">
-                                    <tr>
-                                        <td style="border-radius: 50px; background: #7c3aed;">
-                                            <a href="{{ config('app.frontend_url') }}/verify-email?code={{ urlencode($code) }}"
-                                                style="background: #7c3aed; border: 1px solid #7c3aed; font-family: sans-serif; font-size: 16px; line-height: 1.1; text-align: center; text-decoration: none; display: block; border-radius: 50px; font-weight: bold; padding: 16px 32px; color: #ffffff;">
-                                                <span style="color:#ffffff;">Activate Account</span>
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
-
-                                <p style="margin: 40px 0 0 0; font-size: 14px; line-height: 1.5; color: #94a3b8;">
-                                    This link expires in 24 hours. If you have trouble clicking the button, copy and
-                                    paste the URL below into your web browser:
-                                </p>
-                                <p
-                                    style="margin: 10px 0 0 0; font-size: 12px; line-height: 1.5; color: #7c3aed; word-break: break-all;">
-                                    {{ config('app.frontend_url') }}/verify-email?code={{ urlencode($code) }}
-                                </p>
-                            </td>
-                        </tr>
-
-                        <!-- Footer -->
-                        <tr>
-                            <td
-                                style="padding: 20px; background-color: #f1f5f9; text-align: center; border-top: 1px solid #e2e8f0;">
-                                <p style="margin: 0; font-size: 12px; color: #64748b;">
-                                    &copy; {{ date('Y') }} SAMS. All rights reserved.
-                                </p>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </center>
+<body style="margin:0;padding:24px;background-color:#f5f6fb;font-family:'Segoe UI',Arial,sans-serif;color:#1c1c1c;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="520" cellpadding="0" cellspacing="0"
+                    style="background:#ffffff;border-radius:20px;padding:40px 32px;box-shadow:0 15px 45px rgba(15,23,42,0.08);">
+                    <tr>
+                        <td style="text-align:center;">
+                            <p style="font-size:14px;letter-spacing:0.1em;color:#7f56d9;margin:0 0 16px;">SAMS</p>
+                            <h1 style="font-size:26px;margin:0 0 16px;color:#101828;">Welcome, {{ $user->name }}</h1>
+                            <p style="font-size:15px;line-height:1.6;color:#475467;margin:0 0 24px;">
+                                Tap the button below to activate your account and unlock your dashboard.
+                            </p>
+                            <a href="{{ config('app.frontend_url') }}/verify-email?code={{ urlencode($code) }}"
+                                style="display:inline-block;padding:14px 32px;background:#7f56d9;color:#ffffff;text-decoration:none;border-radius:999px;font-weight:600;box-shadow:0 10px 20px rgba(127,86,217,0.35);">
+                                Activate account
+        </a>
+                            <p style="font-size:12px;color:#98a2b3;margin:32px 0 0;">
+                                This secure link expires in 24 hours. If the button doesn't work, copy and paste this URL into
+                                your browser:
+                            </p>
+                            <p style="font-size:12px;color:#667085;word-break:break-all;margin:8px 0 0;">
+                                {{ config('app.frontend_url') }}/verify-email?code={{ urlencode($code) }}
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 
 </html>

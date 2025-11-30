@@ -1,69 +1,88 @@
-# Backend Change Report
+# SAMS - Student Attendance Management System (Backend)
 
-This document summarizes the recent modifications made to the SAMS Backend (Laravel), specifically focusing on the Authentication Revamp and User Management updates.
+## Overview
+This is the backend API for the Student Attendance Management System (SAMS), built with **Laravel 11**. It provides robust authentication, role-based access control (RBAC), and management features for centers, students, teachers, and parents.
 
-## 1. Database Schema Changes
-**Migration:** `2025_11_27_035933_add_auth_fields_to_users_table.php`
-Added the following columns to the `users` table:
-- `activation_code` (string, nullable): Stores the code used for email verification.
-- `is_data_complete` (boolean, default: false): Flag to indicate if the user has completed their profile (phone, role, etc.).
-- `google_id` (string, nullable): Stores the Google User ID for OAuth login.
+## 🚀 Key Features
 
-## 2. Authentication Logic (`AuthController.php`)
-A comprehensive `AuthController` has been implemented with the following features:
+### Authentication & Security
+- **Sanctum Authentication**: Secure API token management.
+- **Google Login**: Integrated via Laravel Socialite with a **Secure Exchange Token Flow** to prevent token exposure in URLs.
+- **Role-Based Access Control (RBAC)**: Powered by `spatie/laravel-permission`.
+- **Secure Password Reset**: Token-based password reset flow via email.
+- **Email Verification**: Activation code system for new registrations.
 
-### Registration & Verification
-- **Register (`POST /api/auth/register`)**:
-  - Creates a user with `status: pending`.
-  - Generates a UUID `activation_code`.
-  - Sends an **Activation Email** and an **Incomplete Profile Warning Email**.
-  - Returns an authentication token immediately.
-- **Verify Email (`POST /api/auth/verify-email`)**:
-  - Accepts `code`.
-  - Verifies the user and updates `status` to `active`.
+### User Management
+- **Multi-Role Support**: Users can have multiple roles (e.g., `center_admin` + `teacher`).
+- **Default Roles**: New users are automatically assigned `center_admin` and `teacher` roles.
+- **User Status**: Active/Inactive status management.
 
-### Login & Security
-- **Login (`POST /api/auth/login`)**:
-  - Validates credentials.
-  - **Check:** Ensures user `status` is `active`.
-  - **Check:** Prevents concurrent logins (returns 403 if user already has an active token).
-- **Logout (`POST /api/auth/logout`)**:
-  - Revokes current access token.
+## 🛠️ Tech Stack
+- **Framework**: Laravel 11
+- **Database**: MySQL
+- **Auth**: Laravel Sanctum, Laravel Socialite
+- **Permissions**: Spatie Laravel Permission
+- **API Documentation**: Postman / Swagger (Planned)
 
-### Google OAuth
-- **Redirect (`GET /auth/google`)**: Redirects to Google.
-- **Callback (`GET /auth/google/callback`)**:
-  - Handles the response from Google.
-  - Creates a new user if one doesn't exist (with random password).
-  - Updates existing users with `google_id`.
-  - Redirects to the frontend (`/login?token=...`).
+## ⚙️ Setup & Installation
 
-### Profile Management
-- **Complete Profile (`POST /api/auth/complete-profile`)**:
-  - Updates `phone` and `role`.
-  - Sets `is_data_complete` to `true`.
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd laravel-final-SAMS
+   ```
 
-### Password Reset
-- **Send Code (`POST /api/auth/send-reset-code`)**: Sends a reset link via email.
-- **Reset Password (`POST /api/auth/reset-password`)**: Verifies token and updates password.
+2. **Install Dependencies**
+   ```bash
+   composer install
+   ```
 
-## 3. User Model Updates (`User.php`)
-- **Fillable Fields**: Added `activation_code`, `is_data_complete`, `google_id`.
-- **Helper Methods**: Added `isAdmin()`, `isTeacher()`, `isStudent()`, `isActive()`, etc.
-- **Scopes**: Added `scopeIncomplete()` to easily find users with incomplete profiles.
+3. **Environment Setup**
+   ```bash
+   cp .env.example .env
+   ```
+   Update `.env` with your database and mail credentials:
+   ```env
+   DB_DATABASE=sams_db
+   
+   GOOGLE_CLIENT_ID=your-google-client-id
+   GOOGLE_CLIENT_SECRET=your-google-client-secret
+   GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
+   
+   APP_FRONTEND_URL=http://localhost:35045
+   ```
 
-## 4. API Routes (`routes/api.php`)
-New routes added under `auth` prefix:
-- `POST /register`
-- `POST /login`
-- `POST /verify-email`
-- `POST /send-reset-code`
-- `POST /reset-password`
-- `POST /complete-profile` (Authenticated)
-- `POST /logout` (Authenticated)
-- `GET /me` (Authenticated)
+4. **Generate Key**
+   ```bash
+   php artisan key:generate
+   ```
 
-## 5. Untracked / New Files
-The following new components were added (currently untracked by git):
-- **Mailables**: `ActivationCodeMail`, `IncompleteProfileWarningMail`, `ResetCodeMail`.
-- **Tests**: `tests/Feature/AuthRevampTest.php`.
+5. **Run Migrations & Seeders**
+   ```bash
+   php artisan migrate --seed
+   ```
+
+6. **Serve the Application**
+   ```bash
+   php artisan serve
+   ```
+
+## 🔌 API Endpoints
+
+### Authentication (`/api/auth`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/register` | Register a new user (Auto-assigns roles). |
+| POST | `/login` | Login with email & password. |
+| POST | `/logout` | Revoke current access token. |
+| GET | `/me` | Get current authenticated user details. |
+| GET | `/google` | Redirect to Google OAuth. |
+| GET | `/google/callback` | Handle Google callback & return exchange token. |
+| POST | `/exchange-token` | Exchange temporary token for JWT (Secure Flow). |
+| POST | `/verify-email` | Verify user email with activation code. |
+| POST | `/send-reset-code` | Send password reset code to email. |
+| POST | `/validate-reset-code` | Validate reset code. |
+| POST | `/reset-password` | Set new password. |
+
+## 🛡️ Security Note
+**Google Login Flow**: We do NOT send the JWT token directly in the URL callback. Instead, we generate a short-lived `exchange_token` (valid for 60s) stored in Cache. The frontend must exchange this token via a POST request to `/api/auth/exchange-token` to receive the actual authentication token.

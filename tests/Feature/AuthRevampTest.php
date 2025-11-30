@@ -3,12 +3,10 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ActivationCodeMail;
-use App\Mail\IncompleteProfileWarningMail;
 use App\Mail\ResetCodeMail;
 use Illuminate\Support\Facades\Hash;
 
@@ -23,6 +21,7 @@ class AuthRevampTest extends TestCase
         $response = $this->postJson('/api/auth/register', [
             'name' => 'Test User',
             'email' => 'test@example.com',
+            'phone' => '1234567890',
             'password' => 'Password1!',
             'password_confirmation' => 'Password1!',
         ]);
@@ -30,15 +29,13 @@ class AuthRevampTest extends TestCase
         $response->assertStatus(201);
         $this->assertDatabaseHas('users', [
             'email' => 'test@example.com',
-            'is_data_complete' => false,
-            'status' => 'pending',
+            'status' => 'active',
         ]);
 
         $user = User::where('email', 'test@example.com')->first();
         $this->assertNotNull($user->activation_code);
 
         Mail::assertSent(ActivationCodeMail::class);
-        Mail::assertSent(IncompleteProfileWarningMail::class);
     }
 
     public function test_verification_verifies_email()
@@ -60,32 +57,6 @@ class AuthRevampTest extends TestCase
         $this->assertEquals('active', $user->status);
     }
 
-    public function test_cleanup_command_deletes_old_incomplete_users()
-    {
-        // Old incomplete user (should be deleted)
-        User::factory()->create([
-            'is_data_complete' => false,
-            'created_at' => now()->subDays(4),
-        ]);
-
-        // Recent incomplete user (should be kept)
-        User::factory()->create([
-            'is_data_complete' => false,
-            'created_at' => now()->subDays(2),
-        ]);
-
-        // Old complete user (should be kept)
-        User::factory()->create([
-            'is_data_complete' => true,
-            'created_at' => now()->subDays(4),
-        ]);
-
-        $this->artisan('app:cleanup-incomplete-users')
-            ->assertExitCode(0);
-
-        $this->assertDatabaseCount('users', 2);
-    }
-
     public function test_password_can_be_reset_via_secure_link()
     {
         Mail::fake();
@@ -98,15 +69,22 @@ class AuthRevampTest extends TestCase
             'email' => $user->email,
         ])->assertOk();
 
-        $token = null;
-        Mail::assertSent(ResetCodeMail::class, function (ResetCodeMail $mail) use (&$token, $user) {
-            $token = $mail->token;
-            return $mail->email === $user->email;
+        $exchangeToken = null;
+        Mail::assertSent(ResetCodeMail::class, function (ResetCodeMail $mail) use (&$exchangeToken) {
+            $exchangeToken = $mail->token;
+            return true;
         });
+        $this->assertNotNull($exchangeToken, 'Reset token should be captured');
+
+        $validateResponse = $this->postJson('/api/auth/validate-reset-code', ['code' => $exchangeToken]);
+        $validateResponse->assertOk();
+        $data = $validateResponse->json('data');
+        $this->assertArrayHasKey('token', $data);
+        $resetToken = $data['token'];
 
         $this->postJson('/api/auth/reset-password', [
             'email' => $user->email,
-            'token' => $token,
+            'token' => $resetToken,
             'password' => 'N3wpass!1',
             'password_confirmation' => 'N3wpass!1',
         ])->assertOk();
