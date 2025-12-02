@@ -9,10 +9,23 @@ class Center extends Model
 {
     /** @use HasFactory<\Database\Factories\CenterFactory> */
     use HasFactory;
-    protected $fillable = ['name', 'address', 'phone'];
+    protected $fillable = [
+        'user_id',
+        'name',
+        'logo_url',
+        'primary_color',
+        'secondary_color',
+        'subdomain',
+        'is_active',
+    ];
 
-    public function center()
+    public function owner()
     {
-        return $this->hasMany(User::class);
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function groups()
+    {
+        return $this->hasMany(Group::class);
     }
 }

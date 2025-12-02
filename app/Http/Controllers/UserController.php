@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
 use App\Traits\ApiResponse;
+use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
@@ -19,7 +20,13 @@ class UserController extends Controller
     {
         // return all users as JSON
         try {
-            $users = User::with('roles:id,name')->get();
+            $query = User::with('roles:id,name');
+            if (request()->filled('role')) {
+                $role = request()->string('role')->toString();
+                $query->where('role', $role);
+            }
+
+            $users = $query->paginate(20);
             return $this->success(
             data: $users,
             message: 'Users retrieved successfully.'
@@ -44,7 +51,28 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8'],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'status' => ['nullable', 'string', 'max:50'],
+            'role' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $validated['password'] = Hash::make($validated['password']);
+
+        $user = User::create($validated);
+
+        if (!empty($validated['role'])) {
+            $user->assignRole($validated['role']);
+        }
+
+        return $this->success(
+            data: $user->load('roles:id,name'),
+            message: 'User created successfully.',
+            status: 201
+        );
     }
 
     /**
@@ -52,7 +80,12 @@ class UserController extends Controller
      */
     public function show(string $id)
     {
-        //
+        $user = User::with('roles:id,name')->findOrFail($id);
+
+        return $this->success(
+            data: $user,
+            message: 'User retrieved successfully.'
+        );
     }
 
     /**
@@ -68,7 +101,39 @@ class UserController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $user = User::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'email' => [
+                'sometimes',
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
+            'password' => ['nullable', 'string', 'min:8'],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'status' => ['nullable', 'string', 'max:50'],
+            'role' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        if (!empty($validated['password'])) {
+            $validated['password'] = Hash::make($validated['password']);
+        } else {
+            unset($validated['password']);
+        }
+
+        $user->update($validated);
+
+        if (!empty($validated['role'])) {
+            $user->syncRoles([$validated['role']]);
+        }
+
+        return $this->success(
+            data: $user->load('roles:id,name'),
+            message: 'User updated successfully.'
+        );
     }
 
     /**
@@ -76,7 +141,13 @@ class UserController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $user = User::findOrFail($id);
+        $user->delete();
+
+        return $this->success(
+            message: 'User deleted successfully.',
+            status: 204
+        );
     }
 
     public function assignRole(Request $request, User $user)

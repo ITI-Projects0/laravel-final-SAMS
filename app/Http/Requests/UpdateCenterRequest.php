@@ -11,7 +11,7 @@ class UpdateCenterRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return auth()->check();
     }
 
     /**
@@ -22,7 +22,13 @@ class UpdateCenterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'user_id' => ['nullable', 'exists:users,id'],
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'logo_url' => ['nullable', 'url'],
+            'primary_color' => ['nullable', 'string', 'max:50'],
+            'secondary_color' => ['nullable', 'string', 'max:50'],
+            'subdomain' => ['nullable', 'string', 'max:255'],
+            'is_active' => ['boolean'],
         ];
     }
 }

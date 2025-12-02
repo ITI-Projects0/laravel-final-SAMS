@@ -13,7 +13,7 @@ class CenterPolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        return $this->isAdmin($user);
     }
 
     /**
@@ -21,7 +21,7 @@ class CenterPolicy
      */
     public function view(User $user, Center $center): bool
     {
-        return false;
+        return $this->isAdmin($user);
     }
 
     /**
@@ -29,7 +29,7 @@ class CenterPolicy
      */
     public function create(User $user): bool
     {
-        return false;
+        return $this->isAdmin($user);
     }
 
     /**
@@ -37,7 +37,7 @@ class CenterPolicy
      */
     public function update(User $user, Center $center): bool
     {
-        return false;
+        return $this->isAdmin($user);
     }
 
     /**
@@ -45,7 +45,7 @@ class CenterPolicy
      */
     public function delete(User $user, Center $center): bool
     {
-        return false;
+        return $this->isAdmin($user);
     }
 
     /**
@@ -53,7 +53,7 @@ class CenterPolicy
      */
     public function restore(User $user, Center $center): bool
     {
-        return false;
+        return $this->isAdmin($user);
     }
 
     /**
@@ -61,6 +61,11 @@ class CenterPolicy
      */
     public function forceDelete(User $user, Center $center): bool
     {
-        return false;
+        return $this->isAdmin($user);
+    }
+
+    private function isAdmin(User $user): bool
+    {
+        return $user->hasRole('admin') || $user->role === 'admin';
     }
 }

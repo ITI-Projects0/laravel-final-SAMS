@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Http\Resources\TeacherResource;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Hash;
 
 class TeacherController extends Controller
 {
@@ -15,7 +17,7 @@ class TeacherController extends Controller
     public function index()
     {
         try {
-            $teachers = User::where('role', 'teacher')
+            $teachers = User::role('teacher')
                 ->with('taughtGroups.center')
                 ->withCount('taughtGroups')
                 ->paginate(15);
@@ -40,7 +42,18 @@ class TeacherController extends Controller
         try {
             $this->authorize('create', User::class);
 
-            $user = User::create($request->validated());
+            $validated = $request->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+                'password' => ['required', 'string', 'min:8'],
+                'phone' => ['nullable', 'string', 'max:20'],
+            ]);
+
+            $validated['role'] = 'teacher';
+            $validated['password'] = Hash::make($validated['password']);
+
+            $user = User::create($validated);
+            $user->assignRole('teacher');
 
             return $this->success(
                 data: $user,
@@ -61,7 +74,7 @@ class TeacherController extends Controller
     public function show(User $user)
     {
         try {
-            if ($user->role !== 'teacher') {
+            if (!$user->hasRole('teacher') && $user->role !== 'teacher') {
                 return $this->error(
                     message: 'This User Not Teacher',
                     status: 404
@@ -90,7 +103,19 @@ class TeacherController extends Controller
     {
         try {
             $this->authorize('update', $user);
-            $user->update($request->validated());
+            $validated = $request->validate([
+                'name' => ['sometimes', 'required', 'string', 'max:255'],
+                'email' => [
+                    'sometimes',
+                    'required',
+                    'email',
+                    'max:255',
+                    Rule::unique('users', 'email')->ignore($user->id),
+                ],
+                'phone' => ['nullable', 'string', 'max:20'],
+            ]);
+
+            $user->update($validated);
 
             return $this->success(
                 data: $user,

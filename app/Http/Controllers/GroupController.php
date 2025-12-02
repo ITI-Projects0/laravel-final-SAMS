@@ -14,10 +14,15 @@ class GroupController extends Controller
     public function index()
     {
         try {
-            $groups = Group::where('teacher_id', Auth::id())
-                ->with(['teacher', 'center', 'students', 'pendingStudents'])
-                ->withCount('students as students_count')
-                ->paginate(1);
+            $query = Group::with(['teacher', 'center', 'students', 'pendingStudents'])
+                ->withCount('students as students_count');
+
+            $user = Auth::user();
+            if (!$user?->hasRole('admin') && $user?->role !== 'admin') {
+                $query->where('teacher_id', $user?->id);
+            }
+
+            $groups = $query->paginate(15);
 
             return $this->success(
                 data: $groups,

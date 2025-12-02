@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\CenterController;
+use App\Http\Controllers\AdminDashboardController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -32,7 +34,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // User management routes
     Route::apiResource('users', UserController::class)->middleware('role:admin');
+    Route::apiResource('centers', CenterController::class)->middleware('role:admin');
     Route::apiResource('groups', GroupController::class);
+    Route::get('/admin/stats', [AdminDashboardController::class, 'index'])->middleware('role:admin');
 
     // adding or removing roles from user
     Route::post('/users/{user}/roles', [UserController::class, 'assignRole']);
