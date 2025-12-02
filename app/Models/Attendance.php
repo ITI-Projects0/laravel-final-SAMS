@@ -9,5 +9,4 @@ class Attendance extends Model
 {
     /** @use HasFactory<\Database\Factories\AttendanceFactory> */
     use HasFactory;
-    // Define fillable attributes
 }
