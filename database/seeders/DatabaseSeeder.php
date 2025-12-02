@@ -30,6 +30,46 @@ class DatabaseSeeder extends Seeder
     {
         $faker = fake();
 
+        // ---------- PERMISSIONS ----------
+        Permission::firstOrCreate(['name' => 'manage centers', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage teachers', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage students', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage groups', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage attendance', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage grades', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'view student performance', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'use ai analysis', 'guard_name' => 'api']);
+
+        // ---------- ROLES ----------
+        $roleAdmin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'api']);
+        $roleCenter = Role::firstOrCreate(['name' => 'center_admin', 'guard_name' => 'api']);
+        $roleTeacher = Role::firstOrCreate(['name' => 'teacher', 'guard_name' => 'api']);
+        $roleAssistant = Role::firstOrCreate(['name' => 'assistant', 'guard_name' => 'api']);
+        $roleStudent = Role::firstOrCreate(['name' => 'student', 'guard_name' => 'api']);
+        $roleParent = Role::firstOrCreate(['name' => 'parent', 'guard_name' => 'api']);
+
+        // ---------- ASSIGN PERMISSIONS TO ROLES ----------
+        $roleAdmin->givePermissionTo(Permission::all());
+        $roleCenter->givePermissionTo([
+            'manage centers',
+            'manage teachers',
+            'manage students',
+            'manage groups',
+            'manage attendance',
+            'manage grades',
+            'view student performance',
+            'use ai analysis'
+        ]);
+        $roleTeacher->givePermissionTo([
+            'manage groups',
+            'manage attendance',
+            'manage grades',
+            'view student performance',
+            'use ai analysis'
+        ]);
+        $roleAssistant->givePermissionTo(['manage attendance', 'manage groups']);
+        $roleParent->givePermissionTo(['view student performance']);
+
         // ---------- USERS ----------
         $admin = User::factory()->create([
             'name'  => 'SAMS Super Admin',
@@ -38,10 +78,10 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $centerAdmins = User::factory(3)->create();
-        $teachers     = User::factory(6)->create();
-        $assistants   = User::factory(3)->create();
-        $parents      = User::factory(5)->create();
-        $students     = User::factory(20)->create();
+        $teachers = User::factory(6)->create();
+        $assistants = User::factory(3)->create();
+        $parents = User::factory(5)->create();
+        $students = User::factory(20)->create();
 
         // ---------- CENTERS ----------
         $centers = collect();
@@ -56,9 +96,8 @@ class DatabaseSeeder extends Seeder
         // ---------- GROUPS ----------
         $groups = collect();
         foreach ($centers as $center) {
-            // 3 groups per center
             $groupsForCenter = Group::factory(3)->create([
-                'center_id'  => $center->id,
+                'center_id' => $center->id,
                 'teacher_id' => $teachers->random()->id,
             ]);
 
@@ -67,16 +106,13 @@ class DatabaseSeeder extends Seeder
 
         // ---------- PARENT–STUDENT LINKS ----------
         $parentStudentLinks = collect();
-
         foreach ($parents as $parent) {
-            // give each parent 3 random children
             $randomStudents = $students->random(3);
-
             foreach ($randomStudents as $student) {
                 $parentStudentLinks->push(
                     ParentStudentLink::factory()->create([
-                        'parent_id'    => $parent->id,
-                        'student_id'   => $student->id,
+                        'parent_id' => $parent->id,
+                        'student_id' => $student->id,
                         'relationship' => $faker->randomElement(['father', 'mother', 'guardian']),
                     ])
                 );
@@ -85,18 +121,15 @@ class DatabaseSeeder extends Seeder
 
         // ---------- GROUP–STUDENT ENROLLMENT ----------
         $groupStudents = collect();
-
         foreach ($groups as $group) {
-            // 6 students per group
             $randomStudents = $students->random(6);
-
             foreach ($randomStudents as $student) {
                 $groupStudents->push(
                     GroupStudent::factory()->create([
-                        'group_id'  => $group->id,
+                        'group_id' => $group->id,
                         'student_id' => $student->id,
-                        'status'    => 'approved',
-                        'is_pay'    => $faker->boolean(70),
+                        'status' => 'approved',
+                        'is_pay' => $faker->boolean(70),
                         'joined_at' => $faker->dateTimeBetween('-2 months', 'now'),
                     ])
                 );
@@ -109,17 +142,15 @@ class DatabaseSeeder extends Seeder
             $lessonsForGroup = Lesson::factory(4)->create([
                 'group_id' => $group->id,
             ]);
-
             $lessons = $lessons->merge($lessonsForGroup);
         }
 
         $resourceTypes = ['video', 'file', 'link'];
-
         foreach ($lessons as $lesson) {
             foreach ($resourceTypes as $type) {
                 LessonResource::factory()->create([
                     'lesson_id' => $lesson->id,
-                    'type'      => $type,
+                    'type' => $type,
                 ]);
             }
         }
@@ -129,90 +160,74 @@ class DatabaseSeeder extends Seeder
         foreach ($groups as $group) {
             $assessmentsForGroup = Assessment::factory(2)->create([
                 'center_id' => $group->center_id,
-                'group_id'  => $group->id,
+                'group_id' => $group->id,
             ]);
-
             $assessments = $assessments->merge($assessmentsForGroup);
         }
 
-        // group enrollments by group_id
         $enrollmentsByGroup = $groupStudents->groupBy('group_id');
-
         foreach ($assessments as $assessment) {
             $studentsInGroup = $enrollmentsByGroup->get($assessment->group_id, collect());
-
             foreach ($studentsInGroup->pluck('student_id')->unique() as $studentId) {
                 AssessmentResult::factory()->create([
                     'assessment_id' => $assessment->id,
-                    'student_id'    => $studentId,
-                    'score'         => $faker->randomFloat(2, 40, 100),
-                    'remarks'       => $faker->sentence(),
+                    'student_id' => $studentId,
+                    'score' => $faker->randomFloat(2, 40, 100),
+                    'remarks' => $faker->sentence(),
                 ]);
             }
         }
 
         // ---------- ATTENDANCE ----------
-        $staffPool   = $teachers->concat($assistants);
+        $staffPool = $teachers->concat($assistants);
         $groupLookup = $groups->keyBy('id');
-
         foreach ($groupStudents as $membership) {
             $group = $groupLookup->get($membership->group_id);
-
-            if (! $group) {
+            if (!$group)
                 continue;
-            }
-
             Attendance::factory()->create([
-                'center_id'  => $group->center_id,
-                'group_id'   => $group->id,
+                'center_id' => $group->center_id,
+                'group_id' => $group->id,
                 'student_id' => $membership->student_id,
-                'date'       => now()->subDays($faker->numberBetween(0, 10))->toDateString(),
-                'status'     => $faker->randomElement(['present', 'absent', 'late', 'excused']),
-                'marked_by'  => $staffPool->random()->id,
+                'date' => now()->subDays($faker->numberBetween(0, 10))->toDateString(),
+                'status' => $faker->randomElement(['present', 'absent', 'late', 'excused']),
+                'marked_by' => $staffPool->random()->id,
             ]);
         }
 
         // ---------- PARENT NOTIFICATIONS ----------
         foreach ($parents as $parent) {
-            // try to get first linked student for this parent
             $studentLink = $parentStudentLinks->firstWhere('parent_id', $parent->id);
-
-            // if no link, pick a random groupStudent record
             $groupRecord = $studentLink
                 ? $groupStudents->firstWhere('student_id', $studentLink->student_id)
                 : $groupStudents->random();
-
             $group = $groupRecord ? $groupLookup->get($groupRecord->group_id) : null;
 
             Notification::factory(2)->create([
-                'center_id'          => $group?->center_id,
-                'sender_id'          => $teachers->random()->id,
-                'recipient_id'       => $parent->id,
+                'center_id' => $group?->center_id,
+                'sender_id' => $teachers->random()->id,
+                'recipient_id' => $parent->id,
                 'related_student_id' => $studentLink?->student_id,
-                'related_group_id'   => $group?->id,
-                'type'               => $faker->randomElement(['attendance', 'general', 'low_performance']),
-                'title'              => 'SAMS Update',
-                'message'            => $faker->sentence(15),
-                'is_read'            => false,
+                'related_group_id' => $group?->id,
+                'type' => $faker->randomElement(['attendance', 'general', 'low_performance']),
+                'title' => 'SAMS Update',
+                'message' => $faker->sentence(15),
+                'is_read' => false,
             ]);
         }
 
         // ---------- AI STUDENT ANALYSIS ----------
         foreach ($students->take(5) as $student) {
             $groupRecord = $groupStudents->firstWhere('student_id', $student->id);
-
-            if (! $groupRecord) {
+            if (!$groupRecord)
                 continue;
-            }
-
             $group = $groupLookup->get($groupRecord->group_id);
-
             AiStudentAnalysis::factory()->create([
-                'center_id'    => $group->center_id,
-                'student_id'   => $student->id,
+                'center_id' => $group->center_id,
+                'student_id' => $student->id,
                 'requested_by' => $staffPool->random()->id,
-                'summary'      => "Performance summary for {$student->name}",
-                'details'      => $faker->paragraph(),
+                'summary' => "Performance summary for {$student->name}",
+                'details' => $faker->paragraph(),
             ]);
         }
 
