@@ -72,11 +72,10 @@ class DatabaseSeeder extends Seeder
 
         // ---------- USERS ----------
         $admin = User::factory()->create([
-            'name' => 'SAMS Super Admin',
+            'name'  => 'SAMS Super Admin',
             'email' => 'ahmed.alla56756@gmail.com',
             'status' => 'active',
         ]);
-        $admin->assignRole($roleAdmin);
 
         $centerAdmins = User::factory(3)->create();
         $teachers = User::factory(6)->create();
@@ -230,6 +229,56 @@ class DatabaseSeeder extends Seeder
                 'summary' => "Performance summary for {$student->name}",
                 'details' => $faker->paragraph(),
             ]);
+        }
+
+        // Permissions
+        Permission::firstOrCreate(['name' => 'manage centers', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage teachers', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage students', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage groups', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage attendance', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'manage grades', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'view student performance', 'guard_name' => 'api']);
+        Permission::firstOrCreate(['name' => 'use ai analysis', 'guard_name' => 'api']);
+
+        //Roles
+        $admin  = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'api']);
+        $centerAdmin = Role::firstOrCreate(['name' => 'center_admin', 'guard_name' => 'api']);
+        $teacher = Role::firstOrCreate(['name' => 'teacher', 'guard_name' => 'api']);
+        $assistant   = Role::firstOrCreate(['name' => 'assistant', 'guard_name' => 'api']);
+        $student     = Role::firstOrCreate(['name' => 'student', 'guard_name' => 'api']);
+        $parent      = Role::firstOrCreate(['name' => 'parent', 'guard_name' => 'api']);
+
+        $admin->givePermissionTo(Permission::all());
+
+        $centerAdmin->givePermissionTo(['manage centers', 'manage teachers', 'manage students', 'manage groups', 'manage attendance', 'manage grades', 'view student performance', 'use ai analysis']);
+
+        $teacher->givePermissionTo([
+            'manage groups',
+            'manage attendance',
+            'manage grades',
+            'view student performance',
+            'use ai analysis',
+        ]);
+
+        $assistant->givePermissionTo(['manage attendance','manage groups']);
+
+        $parent->givePermissionTo(['view student performance']);
+
+        User::find(1)->assignRole('admin');
+        $users = User::get();
+        foreach ($users as $user) {
+            if ($centerAdmins->contains($user)) {
+                $user->assignRole('center_admin');
+            } elseif ($teachers->contains($user)) {
+                $user->assignRole('teacher');
+            } elseif ($assistants->contains($user)) {
+                $user->assignRole('assistant');
+            } elseif ($parents->contains($user)) {
+                $user->assignRole('parent');
+            } else {
+                $user->assignRole('student');
+            }
         }
     }
 }
