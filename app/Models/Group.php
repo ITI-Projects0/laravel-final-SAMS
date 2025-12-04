@@ -62,4 +62,14 @@ class Group extends Model
             })
             ->withTimestamps();
     }
+
+    public function assessments()
+    {
+        return $this->hasMany(Assessment::class);
+    }
+
+    public function lessons()
+    {
+        return $this->hasMany(Lesson::class);
+    }
 }

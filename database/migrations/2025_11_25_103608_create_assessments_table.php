@@ -18,7 +18,6 @@ return new class extends Migration
             $table->foreignIdFor(Center::class)->constrained()->cascadeOnDelete();
             $table->foreignIdFor(Group::class)->constrained()->cascadeOnDelete();
             $table->string('title');
-            $table->enum('type', ['exam', 'quiz', 'assignment'])->default('exam');
             $table->decimal('max_score', 5, 2);
             $table->dateTime('scheduled_at')->nullable();
             $table->timestamps();

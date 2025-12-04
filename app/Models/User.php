@@ -90,13 +90,46 @@ class User extends Authenticatable
 
     public function groups()
     {
-        return $this->belongsToMany(Group::class, 'group_students')
-            ->withPivot('status', 'joined_at')
+        return $this->belongsToMany(Group::class, 'group_students', 'student_id', 'group_id')
             ->withTimestamps();
     }
 
     public function center()
     {
         return $this->hasOne(Center::class);
+    }
+
+    public function courses()
+    {
+        return $this->belongsToMany(Group::class, 'group_students', 'student_id', 'group_id')
+            ->withPivot('joined_at')
+            ->withTimestamps();
+    }
+
+    public function assessments()
+    {
+        return $this->hasManyThrough(
+            Assessment::class,
+            GroupStudent::class,
+            'student_id',
+            'group_id',
+            'id',
+            'group_id'
+        );
+    }
+
+    public function assignments()
+    {
+        return $this->assessments();
+    }
+
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class, 'student_id');
+    }
+
+    public function presentLessons()
+    {
+        return $this->attendances()->where('status', 'present');
     }
 }
