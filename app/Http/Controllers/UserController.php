@@ -58,9 +58,15 @@ class UserController extends Controller
             'phone' => ['nullable', 'string', 'max:20'],
             'status' => ['nullable', 'string', 'max:50'],
             'role' => ['nullable', 'string', 'max:50'],
+            'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
+
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $validated['avatar'] = $path;
+        }
 
         $user = User::create($validated);
 
@@ -116,12 +122,18 @@ class UserController extends Controller
             'phone' => ['nullable', 'string', 'max:20'],
             'status' => ['nullable', 'string', 'max:50'],
             'role' => ['nullable', 'string', 'max:50'],
+            'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ]);
 
         if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
             unset($validated['password']);
+        }
+
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $validated['avatar'] = $path;
         }
 
         $user->update($validated);

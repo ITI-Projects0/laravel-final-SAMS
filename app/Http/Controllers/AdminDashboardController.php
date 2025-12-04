@@ -26,7 +26,6 @@ class AdminDashboardController extends Controller
 
         $recent = Group::with(['center:id,name', 'teacher:id,name'])
             ->latest()
-            ->take(5)
             ->get(['id', 'name', 'created_at', 'center_id', 'teacher_id']);
 
         return $this->success([
