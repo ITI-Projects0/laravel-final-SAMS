@@ -27,8 +27,8 @@ class StoreGroupRequest extends FormRequest
             'subject' => 'required|string|max:100',
             'center_id' => 'required|exists:centers,id',
             'teacher_id' => 'required|exists:users,id',
-            'join_code' => 'nullable|string|unique:groups,join_code',
-            'is_approval_required' => 'boolean',
+            // 'join_code' => 'nullable|string|unique:groups,join_code',
+            // 'is_approval_required' => 'boolean',
             'is_active' => 'boolean',
         ];
     }

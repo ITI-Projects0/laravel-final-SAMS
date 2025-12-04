@@ -19,7 +19,8 @@ class GroupPolicy
 
     public function create(User $user): bool
     {
-        return $user->role === 'teacher';
+        return $user->hasRole(['admin', 'center_admin', 'teacher', 'assistant'])
+            || in_array($user->role, ['admin', 'center_admin', 'teacher', 'assistant'], true);
     }
 
     public function update(User $user, Group $group): bool

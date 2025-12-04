@@ -15,21 +15,20 @@ class GroupResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'                    => $this->id,
-            'name'                  => $this->name,
-            'subject'               => $this->subject,
-            'description'           => $this->description,
-            'join_code'             => $this->join_code,
-            'is_approval_required'  => $this->is_approval_required,
-            'is_active'             => $this->is_active,
-            'center'                => $this->center?->name,
-            'teacher'               => $this->whenLoaded('teacher', fn() => [
-                'id'   => $this->teacher->id,
-                'name' => $this->teacher->name,
-            ]),
-            'students_count'        => $this->whenLoaded('students', fn() => $this->students->count()),
-            'pending_requests'      => $this->whenLoaded('pendingStudents', fn() => $this->pendingStudents->count()),
-            'created_at'            => $this->created_at->format('Y-m-d H:i'),
+            'id' => $this->id,
+            'name' => $this->name,
+            'subject' => $this->subject,
+            'description' => $this->description,
+            'is_active' => $this->is_active,
+            'schedule_days' => $this->schedule_days,
+            'schedule_time' => $this->schedule_time?->format('H:i'),
+            'sessions_count' => $this->sessions_count,
+            'teacher' => new UserResource($this->whenLoaded('teacher')),
+            'center' => new CenterResource($this->whenLoaded('center')),
+            'students_count' => $this->whenCounted('students'),
+            'lessons_count' => $this->whenCounted('lessons'),
+            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
+            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];
     }
 }

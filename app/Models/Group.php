@@ -12,17 +12,22 @@ class Group extends Model
     protected $fillable = [
         'name',
         'description',
-        'join_code',
+        // 'join_code',
         'subject',
         'center_id',
         'teacher_id',
-        'is_approval_required',
+        // 'is_approval_required',
         'is_active',
+        'schedule_days',
+        'schedule_time',
+        'sessions_count',
     ];
 
     protected $casts = [
-        'is_approval_required' => 'boolean',
+        // 'is_approval_required' => 'boolean',
         'is_active' => 'boolean',
+        'schedule_days' => 'array',
+        'schedule_time' => 'datetime:H:i',
     ];
 
     public function center()

@@ -29,13 +29,13 @@ class UpdateGroupRequest extends FormRequest
             'center_id' => 'required|exists:centers,id',
             'teacher_id' => 'required|exists:users,id',
 
-            'join_code' => [
-                'nullable',
-                'string',
-                Rule::unique('groups')->ignore($this->route('group'))
-            ],
+            // 'join_code' => [
+            //     'nullable',
+            //     'string',
+            //     Rule::unique('groups')->ignore($this->route('group'))
+            // ],
 
-            'is_approval_required' => 'boolean',
+            // 'is_approval_required' => 'boolean',
             'is_active' => 'boolean',
         ];
     }

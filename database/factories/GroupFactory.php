@@ -24,9 +24,9 @@ class GroupFactory extends Factory
             'teacher_id' => User::factory()->state(['role' => 'teacher']),
             'name' => fake()->sentence(3),
             'description' => fake()->paragraph(),
-            'join_code' => Str::upper(Str::random(6)),
+            // 'join_code' => Str::upper(Str::random(6)),
             'subject' => fake()->randomElement(['Math', 'Science', 'English', 'History']),
-            'is_approval_required' => fake()->boolean(30),
+            // 'is_approval_required' => fake()->boolean(30),
             'is_active' => fake()->boolean(90),
         ];
     }
