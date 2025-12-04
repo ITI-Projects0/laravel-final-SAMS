@@ -9,4 +9,21 @@ class AssessmentResult extends Model
 {
     /** @use HasFactory<\Database\Factories\AssessmentResultFactory> */
     use HasFactory;
+
+    protected $fillable = [
+        'assessment_id',
+        'student_id',
+        'score',
+        'remarks',
+    ];
+
+    public function assessment()
+    {
+        return $this->belongsTo(Assessment::class);
+    }
+
+    public function student()
+    {
+        return $this->belongsTo(User::class, 'student_id');
+    }
 }

@@ -22,7 +22,6 @@ class AssessmentFactory extends Factory
             'center_id' => Center::factory(),
             'group_id' => Group::factory(),
             'title' => fake()->sentence(4),
-            'type' => fake()->randomElement(['exam', 'quiz', 'assignment']),
             'max_score' => fake()->numberBetween(50, 100),
             'scheduled_at' => fake()->date(),
         ];

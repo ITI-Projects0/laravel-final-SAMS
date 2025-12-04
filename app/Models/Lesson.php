@@ -27,6 +27,6 @@ class Lesson extends Model
 
     public function resources()
     {
-        return $this->hasMany(\App\Models\LessonResource::class);
+        return $this->hasMany(LessonResource::class);
     }
 }
