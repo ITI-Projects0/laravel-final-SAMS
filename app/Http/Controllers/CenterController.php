@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Center;
 use App\Http\Requests\StoreCenterRequest;
 use App\Http\Requests\UpdateCenterRequest;
+use App\Http\Resources\CenterResource;
 use Illuminate\Support\Facades\Auth;
 
 class CenterController extends Controller
@@ -15,12 +16,19 @@ class CenterController extends Controller
     public function index()
     {
         try {
-            $centers = Center::query()
-                ->with('owner:id,name,email')
-                ->paginate(15);
+            $query = Center::query()->with('owner:id,name,email');
+
+            if (request()->has('is_active')) {
+                $isActive = filter_var(request()->get('is_active'), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+                if (!is_null($isActive)) {
+                    $query->where('is_active', $isActive);
+                }
+            }
+
+            $centers = $query->withCount('groups')->paginate(15);
 
             return $this->success(
-                data: $centers,
+                data: CenterResource::collection($centers),
                 message: 'Centers retrieved successfully.'
             );
         } catch (\Exception $e) {
@@ -49,9 +57,10 @@ class CenterController extends Controller
             $this->authorize('create', Center::class);
 
             $center = Center::create($request->validated());
+            $center->load('owner');
 
             return $this->success(
-                data: $center,
+                data: new CenterResource($center),
                 message: 'Center created successfully.',
                 status: 201
             );
@@ -69,8 +78,10 @@ class CenterController extends Controller
      */
     public function show(Center $center)
     {
+        $center->load('owner');
+
         return $this->success(
-            data: $center->load('owner:id,name,email'),
+            data: new CenterResource($center),
             message: 'Center retrieved successfully.'
         );
     }
@@ -92,9 +103,10 @@ class CenterController extends Controller
             $this->authorize('update', $center);
 
             $center->update($request->validated());
+            $center->load('owner');
 
             return $this->success(
-                data: $center,
+                data: new CenterResource($center),
                 message: 'Center updated successfully.'
             );
         } catch (\Exception $e) {
@@ -123,6 +135,31 @@ class CenterController extends Controller
         } catch (\Exception $e) {
             return $this->error(
                 message: 'Failed to delete center.',
+                status: 500,
+                errors: $e->getMessage(),
+            );
+        }
+    }
+
+    /**
+     * Toggle center active status (admin only).
+     */
+    public function toggleStatus(Center $center)
+    {
+        try {
+            $this->authorize('update', $center);
+
+            $center->is_active = !$center->is_active;
+            $center->save();
+            $center->load('owner');
+
+            return $this->success(
+                data: new CenterResource($center),
+                message: 'Center status updated successfully.'
+            );
+        } catch (\Exception $e) {
+            return $this->error(
+                message: 'Failed to update center status.',
                 status: 500,
                 errors: $e->getMessage(),
             );

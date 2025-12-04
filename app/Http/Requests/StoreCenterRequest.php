@@ -31,4 +31,18 @@ class StoreCenterRequest extends FormRequest
             'is_active' => ['boolean'],
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'user_id.exists' => 'The selected user does not exist.',
+            'name.required' => 'The name field is required.',
+            'name.max' => 'The name may not be greater than 255 characters.',
+            'logo_url.url' => 'The logo URL must be a valid URL.',
+            'primary_color.max' => 'The primary color may not be greater than 50 characters.',
+            'secondary_color.max' => 'The secondary color may not be greater than 50 characters.',
+            'subdomain.max' => 'The subdomain may not be greater than 255 characters.',
+            'is_active.boolean' => 'The is active must be a boolean.',
+        ];
+    }
 }

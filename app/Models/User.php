@@ -28,6 +28,7 @@ class User extends Authenticatable
         'status',
         'activation_code',
         'google_id',
+        'center_id',
     ];
     protected $guard_name = 'api';
 
@@ -97,6 +98,25 @@ class User extends Authenticatable
 
     public function center()
     {
-        return $this->hasOne(Center::class);
+        return $this->belongsTo(Center::class);
+    }
+
+    public function ownedCenter()
+    {
+        return $this->hasOne(Center::class, 'user_id');
+    }
+
+    public function children()
+    {
+        return $this->belongsToMany(User::class, 'parent_student_links', 'parent_id', 'student_id')
+            ->withPivot('relationship')
+            ->withTimestamps();
+    }
+
+    public function parents()
+    {
+        return $this->belongsToMany(User::class, 'parent_student_links', 'student_id', 'parent_id')
+            ->withPivot('relationship')
+            ->withTimestamps();
     }
 }

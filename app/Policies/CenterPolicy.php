@@ -10,6 +10,7 @@ class CenterPolicy
 {
     /**
      * Determine whether the user can view any models.
+     * Admin only – View all centers
      */
     public function viewAny(User $user): bool
     {
@@ -18,10 +19,13 @@ class CenterPolicy
 
     /**
      * Determine whether the user can view the model.
+     * Admin can view any center
+     * Center admin can view ONLY his own center
      */
     public function view(User $user, Center $center): bool
     {
-        return $this->isAdmin($user);
+        return $this->isAdmin($user)
+            || ($this->isCenterAdmin($user) && $center->user_id === $user->id);
     }
 
     /**
@@ -29,7 +33,8 @@ class CenterPolicy
      */
     public function create(User $user): bool
     {
-        return $this->isAdmin($user);
+        // return $this->isAdmin($user);
+        return false;
     }
 
     /**
@@ -37,7 +42,8 @@ class CenterPolicy
      */
     public function update(User $user, Center $center): bool
     {
-        return $this->isAdmin($user);
+        return $this->isAdmin($user)
+        || ($this->isCenterAdmin($user) && $center->user_id === $user->id);
     }
 
     /**
@@ -45,7 +51,8 @@ class CenterPolicy
      */
     public function delete(User $user, Center $center): bool
     {
-        return $this->isAdmin($user);
+        return $this->isAdmin($user)
+            || ($this->isCenterAdmin($user) && $center->user_id === $user->id);
     }
 
     /**
@@ -53,7 +60,8 @@ class CenterPolicy
      */
     public function restore(User $user, Center $center): bool
     {
-        return $this->isAdmin($user);
+        // return $this->isAdmin($user);
+        return false;
     }
 
     /**
@@ -61,11 +69,17 @@ class CenterPolicy
      */
     public function forceDelete(User $user, Center $center): bool
     {
-        return $this->isAdmin($user);
+        return $this->isAdmin($user)
+            || ($this->isCenterAdmin($user) && $center->user_id === $user->id);
     }
 
     private function isAdmin(User $user): bool
     {
         return $user->hasRole('admin') || $user->role === 'admin';
+    }
+
+    private function isCenterAdmin(User $user): bool
+    {
+        return $user->hasRole('center_admin') || $user->role === 'center_admin';
     }
 }
