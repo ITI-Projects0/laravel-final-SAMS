@@ -7,6 +7,26 @@ use Illuminate\Database\Eloquent\Model;
 
 class Lesson extends Model
 {
-    /** @use HasFactory<\Database\Factories\LessonFactory> */
     use HasFactory;
+
+    protected $fillable = [
+        'group_id',
+        'title',
+        'description',
+        'scheduled_at',
+    ];
+
+    protected $casts = [
+        'scheduled_at' => 'datetime',
+    ];
+
+    public function group()
+    {
+        return $this->belongsTo(Group::class);
+    }
+
+    public function resources()
+    {
+        return $this->hasMany(\App\Models\LessonResource::class);
+    }
 }

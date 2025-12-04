@@ -11,7 +11,7 @@ class StoreLessonRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return auth()->check();
     }
 
     /**
@@ -22,7 +22,20 @@ class StoreLessonRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'scheduled_at' => ['nullable', 'date'],
+        ];
+    }
+    
+    public function messages(): array
+    {
+        return [
+            'title.required' => 'The title field is required.',
+            'title.string' => 'The title must be a string.',
+            'title.max' => 'The title may not be greater than 255 characters.',
+            'description.string' => 'The description must be a string.',
+            'scheduled_at.date' => 'The scheduled at must be a valid date.',
         ];
     }
 }

@@ -13,7 +13,12 @@ class AttendancePolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        return $user->hasRole(['admin', 'center_admin', 'teacher', 'assistant']) || in_array($user->role, [
+            'admin',
+            'center_admin',
+            'teacher',
+            'assistant',
+        ], true);
     }
 
     /**
@@ -21,7 +26,7 @@ class AttendancePolicy
      */
     public function view(User $user, Attendance $attendance): bool
     {
-        return false;
+        return $this->canAccessAttendance($user, $attendance);
     }
 
     /**
@@ -29,7 +34,7 @@ class AttendancePolicy
      */
     public function create(User $user): bool
     {
-        return false;
+        return $this->canAccessCenter($user, $attendanceCenterId = null);
     }
 
     /**
@@ -37,7 +42,7 @@ class AttendancePolicy
      */
     public function update(User $user, Attendance $attendance): bool
     {
-        return false;
+        return $this->canAccessAttendance($user, $attendance);
     }
 
     /**
@@ -45,7 +50,7 @@ class AttendancePolicy
      */
     public function delete(User $user, Attendance $attendance): bool
     {
-        return false;
+        return $this->canAccessAttendance($user, $attendance);
     }
 
     /**
@@ -61,6 +66,40 @@ class AttendancePolicy
      */
     public function forceDelete(User $user, Attendance $attendance): bool
     {
+        return false;
+    }
+
+    protected function canAccessAttendance(User $user, Attendance $attendance): bool
+    {
+        if ($user->hasRole('admin') || $user->role === 'admin') {
+            return true;
+        }
+
+        $centerId = $attendance->center_id;
+        return $this->canAccessCenter($user, $centerId);
+    }
+
+    protected function canAccessCenter(User $user, ?int $centerId): bool
+    {
+        if ($user->hasRole('admin') || $user->role === 'admin') {
+            return true;
+        }
+
+        if (!$centerId) {
+            return false;
+        }
+
+        // Center admin of this center
+        if ($user->hasRole('center_admin') || $user->role === 'center_admin') {
+            return $user->center?->id === $centerId;
+        }
+
+        // Teacher/assistant who teaches/works in this center via groups
+        if ($user->hasRole(['teacher', 'assistant']) || in_array($user->role, ['teacher', 'assistant'], true)) {
+            return $user->taughtGroups()->where('center_id', $centerId)->exists()
+                || $user->groups()->where('center_id', $centerId)->exists();
+        }
+
         return false;
     }
 }

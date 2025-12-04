@@ -2,65 +2,66 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Attendance;
 use App\Http\Requests\StoreAttendanceRequest;
-use App\Http\Requests\UpdateAttendanceRequest;
+use App\Http\Resources\AttendanceResource;
+use App\Models\Attendance;
+use App\Models\Group;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class AttendanceController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    protected function canManageGroup(Group $group): bool
     {
-        //
+        $groupStudentController = new GroupStudentController();
+        return $groupStudentController->canManageGroup($group);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function index(Group $group, Request $request)
     {
-        //
+        if (!$this->canManageGroup($group)) {
+            return $this->error('Unauthorized.', 403);
+        }
+
+        $query = Attendance::where('group_id', $group->id);
+
+        if ($request->filled('date')) {
+            $query->whereDate('date', $request->string('date')->toString());
+        }
+
+        $records = $query->with(['student', 'group', 'markedBy'])->get();
+
+        return $this->success(AttendanceResource::collection($records), 'Attendance records retrieved successfully.');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreAttendanceRequest $request)
+    public function store(StoreAttendanceRequest $request, Group $group)
     {
-        //
-    }
+        if (!$this->canManageGroup($group)) {
+            return $this->error('Unauthorized.', 403);
+        }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Attendance $attendance)
-    {
-        //
-    }
+        $data = $request->validated();
+        $date = $data['date'];
+        $entries = $data['entries'];
+        $userId = Auth::id();
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Attendance $attendance)
-    {
-        //
-    }
+        foreach ($entries as $entry) {
+            Attendance::updateOrCreate(
+                [
+                    'center_id' => $group->center_id,
+                    'group_id' => $group->id,
+                    'student_id' => $entry['student_id'],
+                    'date' => $date,
+                ],
+                [
+                    'status' => $entry['status'],
+                    'marked_by' => $userId,
+                ]
+            );
+        }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateAttendanceRequest $request, Attendance $attendance)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Attendance $attendance)
-    {
-        //
+        return $this->success(null, 'Attendance saved successfully.');
     }
 }
+
+
