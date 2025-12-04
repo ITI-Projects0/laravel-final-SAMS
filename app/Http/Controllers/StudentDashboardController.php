@@ -15,7 +15,7 @@ class StudentDashboardController extends Controller
 
     public function overView()
     {
-        $student = User::findOrFail(20);
+        $student = User::findOrFail(Auth::id());
 
         $enrolledCourses = $student->courses()->count();
 
@@ -57,7 +57,7 @@ class StudentDashboardController extends Controller
 
     public function studentGroups()
     {
-        $student = User::findOrFail(20);
+        $student = User::findOrFail(Auth::id());
 
         $groups = $student->courses()
             ->with(['teacher:id,name,email', 'center:id,name'])
@@ -78,7 +78,7 @@ class StudentDashboardController extends Controller
 
     public function groupOverview(Request $request, Group $group)
     {
-        $student = User::findOrFail(20);
+        $student = User::findOrFail(Auth::id());
 
         if (!$student->groups()->where('groups.id', $group->id)->exists()) {
             return $this->error('You are not enrolled in this course.', 403);
@@ -129,7 +129,7 @@ class StudentDashboardController extends Controller
 
     public function studentAssignments()
     {
-        $student = User::findOrFail(20);
+        $student = User::findOrFail(Auth::id());
 
         $assignments = $student->assignments()
             ->with([
