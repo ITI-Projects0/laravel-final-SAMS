@@ -11,7 +11,6 @@ use App\Models\Group;
 use App\Models\GroupStudent;
 use App\Models\Lesson;
 use App\Models\LessonResource;
-use App\Models\Notification;
 use App\Models\ParentStudentLink;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -209,27 +208,6 @@ class DatabaseSeeder extends Seeder
                 'date' => now()->subDays($faker->numberBetween(0, 10))->toDateString(),
                 'status' => $faker->randomElement(['present', 'absent', 'late', 'excused']),
                 'marked_by' => $staffPool->random()->id,
-            ]);
-        }
-
-        // ---------- PARENT NOTIFICATIONS ----------
-        foreach ($parents as $parent) {
-            $studentLink = $parentStudentLinks->firstWhere('parent_id', $parent->id);
-            $groupRecord = $studentLink
-                ? $groupStudents->firstWhere('student_id', $studentLink->student_id)
-                : $groupStudents->random();
-            $group = $groupRecord ? $groupLookup->get($groupRecord->group_id) : null;
-
-            Notification::factory(2)->create([
-                'center_id' => $group?->center_id,
-                'sender_id' => $teachers->random()->id,
-                'recipient_id' => $parent->id,
-                'related_student_id' => $studentLink?->student_id,
-                'related_group_id' => $group?->id,
-                'type' => $faker->randomElement(['attendance', 'general', 'low_performance']),
-                'title' => 'SAMS Update',
-                'message' => $faker->sentence(15),
-                'is_read' => false,
             ]);
         }
 

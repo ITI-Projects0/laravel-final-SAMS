@@ -7,7 +7,9 @@ use App\Models\Group;
 use App\Http\Resources\GroupResource;
 use App\Http\Requests\StoreGroupRequest;
 use App\Http\Requests\UpdateGroupRequest;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use App\Notifications\NewGroupCreated;
 
 class GroupController extends Controller
 {
@@ -17,7 +19,7 @@ class GroupController extends Controller
             $query = Group::with(['teacher', 'center', 'students', 'pendingStudents'])
                 ->withCount('students as students_count');
 
-            $user = Auth::user();
+            $user = User::findOrFail(Auth::id());
             if (!$user?->hasRole('admin') && $user?->role !== 'admin') {
                 $query->where('teacher_id', $user?->id);
             }
@@ -40,13 +42,17 @@ class GroupController extends Controller
     public function store(StoreGroupRequest $request)
     {
         try {
-            $this->authorize('create', Group::class);
+            // $this->authorize('create', Group::class);
+
+            $allAdmins = User::role('admin')->get();
 
             $data = $request->validated();
             $data['teacher_id'] = Auth::id();
 
             $group = Group::create($data);
-
+            $allAdmins->each(function ($admin) use ($group) {
+                $admin->notify(new NewGroupCreated($group, $group->teacher));
+            });
             return $this->success(
                 data: $group,
                 message: 'Group created successfully.'

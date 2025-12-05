@@ -7,6 +7,7 @@ use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\CenterController;
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\StudentDashboardController;
 use App\Http\Controllers\CenterAdminController;
 use App\Http\Controllers\TeacherManagementController;
@@ -27,7 +28,6 @@ Route::prefix('auth')->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
-
     });
 });
 
@@ -113,5 +113,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/teachers/{user}', [CenterAdminController::class, 'destroyTeacher']);
         Route::delete('/assistants/{user}', [CenterAdminController::class, 'destroyAssistant']);
         Route::delete('/students/{user}', [CenterAdminController::class, 'destroyStudent']);
+    });
+  
+  Route::prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'index']);
+        Route::get('/latest', [NotificationController::class, 'latest']);
+        Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+        Route::post('/{id}/mark-read', [NotificationController::class, 'markAsRead']);
+        Route::delete('/{id}', [NotificationController::class, 'destroy']);
+        Route::delete('/', [NotificationController::class, 'destroyAll']);
     });
 });
