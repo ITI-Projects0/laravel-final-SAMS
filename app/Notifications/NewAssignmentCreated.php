@@ -6,12 +6,10 @@ use App\Models\User;
 use App\Models\Group;
 use App\Models\Assessment;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Notification;
 
-class NewAssignmentCreated extends Notification implements ShouldBroadcast, ShouldQueue
+class NewAssignmentCreated extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -26,17 +24,23 @@ class NewAssignmentCreated extends Notification implements ShouldBroadcast, Shou
         $this->group = $group;
     }
 
+    /**
+     * Get the notification's delivery channels.
+     */
     public function via($notifiable): array
     {
-        return ['database', 'broadcast'];
+        return ['database'];
     }
 
+    /**
+     * Get the array representation of the notification (for database).
+     */
     public function toArray($notifiable): array
     {
         return [
             'type' => 'new_assignment_created',
-            'title' => 'واجب جديد',
-            'message' => "تم إضافة واجب جديد ({$this->assignment->title}) لابنك/ابنتك {$this->student->name} في مجموعة {$this->group->name}",
+            'title' => 'New Assignment',
+            'message' => "A new assignment ({$this->assignment->title}) has been added for your child {$this->student->name} in group {$this->group->name}",
             'student_id' => $this->student->id,
             'student_name' => $this->student->name,
             'assignment_id' => $this->assignment->id,
@@ -49,18 +53,11 @@ class NewAssignmentCreated extends Notification implements ShouldBroadcast, Shou
         ];
     }
 
-    public function toBroadcast($notifiable): BroadcastMessage
+    /**
+     * Determine if notification should be sent after database transaction commits.
+     */
+    public function afterCommit(): bool
     {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
-    public function broadcastOn(): array
-    {
-        return ['private-user.' . $notifiable->id];
-    }
-
-    public function broadcastAs(): string
-    {
-        return 'notification.new';
+        return true;
     }
 }

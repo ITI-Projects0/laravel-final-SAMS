@@ -19,7 +19,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Register Notification Observer
-        \Illuminate\Notifications\DatabaseNotification::observe(\App\Observers\NotificationObserver::class);
+        //
     }
 }

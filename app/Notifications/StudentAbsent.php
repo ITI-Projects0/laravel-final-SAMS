@@ -5,12 +5,10 @@ namespace App\Notifications;
 use App\Models\User;
 use App\Models\Group;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Notification;
 
-class StudentAbsent extends Notification implements ShouldBroadcast, ShouldQueue
+class StudentAbsent extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -25,17 +23,23 @@ class StudentAbsent extends Notification implements ShouldBroadcast, ShouldQueue
         $this->date = $date;
     }
 
+    /**
+     * Get the notification's delivery channels.
+     */
     public function via($notifiable): array
     {
-        return ['database', 'broadcast'];
+        return ['database'];
     }
 
+    /**
+     * Get the array representation of the notification (for database).
+     */
     public function toArray($notifiable): array
     {
         return [
             'type' => 'student_absent',
-            'title' => 'غياب الطالب',
-            'message' => "الطالب {$this->student->name} كان غائباً في مجموعة {$this->group->name} بتاريخ {$this->date}",
+            'title' => 'Student Absent',
+            'message' => "Student {$this->student->name} was absent in group {$this->group->name} on {$this->date}",
             'student_id' => $this->student->id,
             'student_name' => $this->student->name,
             'group_id' => $this->group->id,
@@ -46,18 +50,11 @@ class StudentAbsent extends Notification implements ShouldBroadcast, ShouldQueue
         ];
     }
 
-    public function toBroadcast($notifiable): BroadcastMessage
+    /**
+     * Determine if notification should be sent after database transaction commits.
+     */
+    public function afterCommit(): bool
     {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
-    public function broadcastOn(): array
-    {
-        return ['private-user.' . $notifiable->id];
-    }
-
-    public function broadcastAs(): string
-    {
-        return 'notification.new';
+        return true;
     }
 }

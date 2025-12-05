@@ -3,13 +3,11 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class CenterAdminStatusChanged extends Notification implements ShouldBroadcast, ShouldQueue
+class CenterAdminStatusChanged extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -22,21 +20,27 @@ class CenterAdminStatusChanged extends Notification implements ShouldBroadcast, 
         $this->reason = $reason;
     }
 
+    /**
+     * Get the notification's delivery channels.
+     */
     public function via($notifiable): array
     {
-        return ['database', 'broadcast', 'mail'];
+        return ['database', 'mail'];
     }
 
+    /**
+     * Get the array representation of the notification (for database).
+     */
     public function toArray($notifiable): array
     {
         $isApproved = $this->status === 'approved';
 
         return [
             'type' => 'center_admin_status_changed',
-            'title' => $isApproved ? 'تم قبول طلبك' : 'تم رفض طلبك',
+            'title' => $isApproved ? 'Application Approved' : 'Application Rejected',
             'message' => $isApproved
-                ? 'تم قبول طلب التسجيل الخاص بك كمدير مركز. يمكنك الآن تسجيل الدخول والبدء في إدارة مركزك'
-                : "تم رفض طلب التسجيل الخاص بك" . ($this->reason ? ": {$this->reason}" : ''),
+                ? 'Your center admin registration has been approved. You can now login and manage your center.'
+                : "Your registration has been rejected" . ($this->reason ? ": {$this->reason}" : ''),
             'status' => $this->status,
             'reason' => $this->reason,
             'icon' => $isApproved ? 'check-circle' : 'x-circle',
@@ -44,42 +48,38 @@ class CenterAdminStatusChanged extends Notification implements ShouldBroadcast, 
         ];
     }
 
-    public function toBroadcast($notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
+    /**
+     * Get the mail representation of the notification.
+     */
     public function toMail($notifiable): MailMessage
     {
         $isApproved = $this->status === 'approved';
 
         $mail = (new MailMessage)
-            ->subject($isApproved ? 'تم قبول طلبك - SAMS' : 'تم رفض طلبك - SAMS')
-            ->greeting("مرحباً {$notifiable->name}،");
+            ->subject($isApproved ? 'Application Approved - SAMS' : 'Application Rejected - SAMS')
+            ->greeting("Hello {$notifiable->name},");
 
         if ($isApproved) {
-            $mail->line('تم قبول طلب التسجيل الخاص بك كمدير مركز.')
-                ->line('يمكنك الآن تسجيل الدخول والبدء في إدارة مركزك.')
-                ->action('تسجيل الدخول', url('/login'))
-                ->line('شكراً لاستخدامك نظام SAMS!');
+            $mail->line('Your center admin registration has been approved.')
+                ->line('You can now login and start managing your center.')
+                ->action('Login', url('/login'))
+                ->line('Thank you for using SAMS!');
         } else {
-            $mail->line('نأسف لإبلاغك بأنه تم رفض طلب التسجيل الخاص بك.');
+            $mail->line('We regret to inform you that your registration has been rejected.');
             if ($this->reason) {
-                $mail->line("السبب: {$this->reason}");
+                $mail->line("Reason: {$this->reason}");
             }
-            $mail->line('إذا كان لديك أي استفسارات، يرجى التواصل مع الإدارة.');
+            $mail->line('If you have any questions, please contact administration.');
         }
 
         return $mail;
     }
 
-    public function broadcastOn(): array
+    /**
+     * Determine if notification should be sent after database transaction commits.
+     */
+    public function afterCommit(): bool
     {
-        return ['private-user.' . $this->notifiable->id];
-    }
-
-    public function broadcastAs(): string
-    {
-        return 'notification.new';
+        return true;
     }
 }

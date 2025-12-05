@@ -5,12 +5,10 @@ namespace App\Notifications;
 use App\Models\Group;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Notification;
 
-class NewGroupCreated extends Notification implements ShouldBroadcast, ShouldQueue
+class NewGroupCreated extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -23,17 +21,23 @@ class NewGroupCreated extends Notification implements ShouldBroadcast, ShouldQue
         $this->teacher = $teacher;
     }
 
+    /**
+     * Get the notification's delivery channels.
+     */
     public function via($notifiable): array
     {
-        return ['database', 'broadcast'];
+        return ['database'];
     }
 
+    /**
+     * Get the array representation of the notification (for database).
+     */
     public function toArray($notifiable): array
     {
         return [
             'type' => 'new_group_created',
-            'title' => 'مجموعة جديدة تم إنشاؤها',
-            'message' => "المعلم {$this->teacher->name} قام بإنشاء مجموعة جديدة: {$this->group->name}",
+            'title' => 'New Group Created',
+            'message' => "Teacher {$this->teacher->name} has created a new group: {$this->group->name}",
             'group_id' => $this->group->id,
             'group_name' => $this->group->name,
             'group_subject' => $this->group->subject,
@@ -44,18 +48,11 @@ class NewGroupCreated extends Notification implements ShouldBroadcast, ShouldQue
         ];
     }
 
-    public function toBroadcast($notifiable): BroadcastMessage
+    /**
+     * Determine if notification should be sent after database transaction commits.
+     */
+    public function afterCommit(): bool
     {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
-    public function broadcastOn(): array
-    {
-        return ['private-user.' . $notifiable->id];
-    }
-
-    public function broadcastAs(): string
-    {
-        return 'notification.new';
+        return true;
     }
 }

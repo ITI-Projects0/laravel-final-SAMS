@@ -4,12 +4,10 @@ namespace App\Notifications;
 
 use App\Models\Group;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Notification;
 
-class GroupUpdated extends Notification implements ShouldBroadcast, ShouldQueue
+class GroupUpdated extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -22,19 +20,25 @@ class GroupUpdated extends Notification implements ShouldBroadcast, ShouldQueue
         $this->changes = $changes;
     }
 
+    /**
+     * Get the notification's delivery channels.
+     */
     public function via($notifiable): array
     {
-        return ['database', 'broadcast'];
+        return ['database'];
     }
 
+    /**
+     * Get the array representation of the notification (for database).
+     */
     public function toArray($notifiable): array
     {
         $changesList = $this->formatChanges();
 
         return [
             'type' => 'group_updated',
-            'title' => 'تحديث في المجموعة',
-            'message' => "تم تحديث معلومات المجموعة {$this->group->name}: {$changesList}",
+            'title' => 'Group Updated',
+            'message' => "Group {$this->group->name} has been updated: {$changesList}",
             'group_id' => $this->group->id,
             'group_name' => $this->group->name,
             'changes' => $this->changes,
@@ -43,29 +47,17 @@ class GroupUpdated extends Notification implements ShouldBroadcast, ShouldQueue
         ];
     }
 
-    public function toBroadcast($notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage($this->toArray($notifiable));
-    }
-
-    public function broadcastOn(): array
-    {
-        return ['private-group.' . $this->group->id];
-    }
-
-    public function broadcastAs(): string
-    {
-        return 'notification.new';
-    }
-
+    /**
+     * Format changes for display.
+     */
     private function formatChanges(): string
     {
         $formatted = [];
         $labels = [
-            'name' => 'الاسم',
-            'description' => 'الوصف',
-            'subject' => 'المادة',
-            'schedule' => 'الجدول',
+            'name' => 'Name',
+            'description' => 'Description',
+            'subject' => 'Subject',
+            'schedule' => 'Schedule',
         ];
 
         foreach ($this->changes as $key => $value) {
@@ -74,6 +66,14 @@ class GroupUpdated extends Notification implements ShouldBroadcast, ShouldQueue
             }
         }
 
-        return implode('، ', $formatted);
+        return implode(', ', $formatted);
+    }
+
+    /**
+     * Determine if notification should be sent after database transaction commits.
+     */
+    public function afterCommit(): bool
+    {
+        return true;
     }
 }

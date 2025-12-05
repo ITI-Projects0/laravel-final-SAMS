@@ -3,7 +3,6 @@
 namespace App\Notifications;
 
 use App\Models\User;
-use App\Events\NotificationCreated;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
@@ -19,11 +18,17 @@ class NewCenterAdminRegistration extends Notification implements ShouldQueue
         $this->centerAdmin = $centerAdmin;
     }
 
+    /**
+     * Get the notification's delivery channels.
+     */
     public function via($notifiable): array
     {
         return ['database'];
     }
 
+    /**
+     * Get the array representation of the notification (for database).
+     */
     public function toArray($notifiable): array
     {
         return [
@@ -38,7 +43,10 @@ class NewCenterAdminRegistration extends Notification implements ShouldQueue
         ];
     }
 
-    public function afterCommit()
+    /**
+     * Determine if notification should be sent after database transaction commits.
+     */
+    public function afterCommit(): bool
     {
         return true;
     }
