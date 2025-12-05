@@ -19,7 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Register BroadcastServiceProvider
-        $this->app->register(BroadcastServiceProvider::class);
+        // Register Notification Observer
+        \Illuminate\Notifications\DatabaseNotification::observe(\App\Observers\NotificationObserver::class);
     }
 }

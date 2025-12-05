@@ -25,6 +25,24 @@ class NotificationController extends Controller
     }
 
     /**
+     * Get latest 10 notifications
+     */
+    public function latest()
+    {
+        $user = Auth::user();
+
+        $notifications = $user->notifications()
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $notifications,
+        ]);
+    }
+
+    /**
      * Get unread notifications count
      */
     public function unreadCount()
@@ -47,11 +65,15 @@ class NotificationController extends Controller
         $user = Auth::user();
 
         $notification = $user->notifications()->findOrFail($id);
-        $notification->markAsRead();
+
+        if (!$notification->read_at) {
+            $notification->markAsRead();
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تحديد الإشعار كمقروء',
+            'message' => 'Notification marked as read',
+            'notification' => $notification,
         ]);
     }
 
@@ -66,7 +88,7 @@ class NotificationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تحديد جميع الإشعارات كمقروءة',
+            'message' => 'All notifications marked as read',
         ]);
     }
 
@@ -82,7 +104,7 @@ class NotificationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم حذف الإشعار',
+            'message' => 'Notification deleted',
         ]);
     }
 
@@ -97,7 +119,7 @@ class NotificationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم حذف جميع الإشعارات',
+            'message' => 'All notifications deleted',
         ]);
     }
 }

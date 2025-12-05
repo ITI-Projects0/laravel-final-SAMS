@@ -3,13 +3,12 @@
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Events\NotificationCreated;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Notification;
 
-class NewCenterAdminRegistration extends Notification implements ShouldBroadcast, ShouldQueue
+class NewCenterAdminRegistration extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -22,15 +21,15 @@ class NewCenterAdminRegistration extends Notification implements ShouldBroadcast
 
     public function via($notifiable): array
     {
-        return ['database', 'broadcast'];
+        return ['database'];
     }
 
     public function toArray($notifiable): array
     {
         return [
             'type' => 'new_center_admin_registration',
-            'title' => 'تسجيل مدير مركز جديد',
-            'message' => "مدير مركز جديد ({$this->centerAdmin->name}) قام بالتسجيل وينتظر الموافقة",
+            'title' => 'New Center Admin Registration',
+            'message' => "New center admin ({$this->centerAdmin->name}) has registered and is awaiting approval",
             'center_admin_id' => $this->centerAdmin->id,
             'center_admin_name' => $this->centerAdmin->name,
             'center_admin_email' => $this->centerAdmin->email,
@@ -39,27 +38,8 @@ class NewCenterAdminRegistration extends Notification implements ShouldBroadcast
         ];
     }
 
-    public function toBroadcast($notifiable): BroadcastMessage
+    public function afterCommit()
     {
-        return new BroadcastMessage([
-            'type' => 'new_center_admin_registration',
-            'title' => 'تسجيل مدير مركز جديد',
-            'message' => "مدير مركز جديد ({$this->centerAdmin->name}) قام بالتسجيل وينتظر الموافقة",
-            'center_admin_id' => $this->centerAdmin->id,
-            'center_admin_name' => $this->centerAdmin->name,
-            'center_admin_email' => $this->centerAdmin->email,
-            'icon' => 'user-plus',
-            'created_at' => now()->toISOString(),
-        ]);
-    }
-
-    public function broadcastOn(): array
-    {
-        return ['private-admin-channel'];
-    }
-
-    public function broadcastAs(): string
-    {
-        return 'notification.new';
+        return true;
     }
 }
