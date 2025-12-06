@@ -19,11 +19,19 @@ class CenterAdminController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user || !$user->center) {
+        if (!$user) {
             return null;
         }
 
-        return $user->center;
+        if ($user->center) {
+            return $user->center;
+        }
+
+        if ($user->ownedCenter) {
+            return $user->ownedCenter;
+        }
+
+        return null;
     }
 
     /**
@@ -55,19 +63,15 @@ class CenterAdminController extends Controller
 
         // Students: any user linked via group_students to groups in this center.
         $students = User::role('student')
-            ->whereHas('taughtGroups', function ($q) use ($centerId) {
+            ->whereHas('groups', function ($q) use ($centerId) {
                 $q->where('center_id', $centerId);
             })
             ->get(['id', 'name', 'email', 'phone', 'status']);
 
         // Parents (still need to be linked via students)
         $parents = User::role('parent')
-            ->whereHas('parentLinks', function ($q) use ($centerId) {
-                $q->whereHas('student.groups', function ($qq) use ($centerId) {
-                    $qq->whereHas('taughtGroups', function ($q) use ($centerId) {
+            ->whereHas('children.groups', function ($q) use ($centerId) {
                 $q->where('center_id', $centerId);
-            });
-                });
             })
             ->get(['id', 'name', 'email', 'phone', 'status']);
 

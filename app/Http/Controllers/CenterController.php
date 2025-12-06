@@ -16,7 +16,12 @@ class CenterController extends Controller
     public function index()
     {
         try {
-            $query = Center::query()->with('owner:id,name,email');
+            $query = Center::query()
+                ->with('owner:id,name,email')
+                ->with(['groups' => fn($q) => $q
+                    ->with('teacher:id,name')
+                    ->withCount('students')
+                ]);
 
             if (request()->has('is_active')) {
                 $isActive = filter_var(request()->get('is_active'), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
@@ -78,7 +83,12 @@ class CenterController extends Controller
      */
     public function show(Center $center)
     {
-        $center->load('owner');
+        $center->load([
+            'owner',
+            'groups' => fn($q) => $q
+                ->with('teacher:id,name')
+                ->withCount('students')
+        ])->loadCount('groups');
 
         return $this->success(
             data: new CenterResource($center),

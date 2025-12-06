@@ -28,9 +28,9 @@ class CenterResource extends JsonResource
                 'email' => $this->owner->email,
             ]),
             'groups_count' => $this->whenCounted('groups'),
+            'groups' => GroupResource::collection($this->whenLoaded('groups')),
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];
     }
 }
-

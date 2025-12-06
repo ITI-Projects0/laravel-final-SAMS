@@ -22,13 +22,13 @@ class UserResource extends JsonResource
             'status' => $this->status,
             'center_id' => $this->center_id,
             'roles' => $this->whenLoaded('roles', fn() => $this->roles->pluck('name')),
-            'role' => $this->role,
+            'role' => $this->whenLoaded('roles', fn() => $this->roles->pluck('name')->first()),
             'center' => new CenterResource($this->whenLoaded('center')),
             'groups' => GroupResource::collection($this->whenLoaded('groups')),
+            'children' => UserResource::collection($this->whenLoaded('children')),
             'groups_count' => $this->whenCounted('groups'),
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];
     }
 }
-

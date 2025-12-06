@@ -80,6 +80,18 @@ class User extends Authenticatable
         return $this->role === 'parent';
     }
 
+    /**
+     * Derived primary role name (fallback to first assigned spatie role).
+     */
+    public function getRoleAttribute($value)
+    {
+        if ($value) {
+            return $value;
+        }
+
+        return $this->roles->first()?->name;
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';
