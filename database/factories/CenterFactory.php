@@ -18,7 +18,7 @@ class CenterFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => User::factory()->state(['role' => 'center_admin']),
+            'user_id' => User::factory()->centerAdmin(),
             'name' => fake()->company() . ' Academy',
             'logo_url' => fake()->imageUrl(300, 300, 'education', true),
             'primary_color' => fake()->safeHexColor(),

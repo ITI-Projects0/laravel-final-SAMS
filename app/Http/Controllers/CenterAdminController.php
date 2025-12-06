@@ -19,11 +19,18 @@ class CenterAdminController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user || !$user->center) {
+        if (!$user) {
             return null;
         }
 
-        return $user->center;
+        $center = $user->center ?? $user->ownedCenter;
+
+        if ($center && !$user->center_id) {
+            $user->center_id = $center->id;
+            $user->save();
+        }
+
+        return $center;
     }
 
     /**
@@ -38,37 +45,20 @@ class CenterAdminController extends Controller
 
         $centerId = $center->id;
 
-        // Teachers & assistants: any user teaching groups in this center.
-        // Teachers
         $teachers = User::role('teacher')
-            ->whereHas('taughtGroups', function ($q) use ($centerId) {
-                $q->where('center_id', $centerId);
-            })
+            ->where('center_id', $centerId)
             ->get(['id', 'name', 'email', 'phone', 'status']);
 
-        // Assistants
         $assistants = User::role('assistant')
-            ->whereHas('taughtGroups', function ($q) use ($centerId) {
-                $q->where('center_id', $centerId);
-            })
+            ->where('center_id', $centerId)
             ->get(['id', 'name', 'email', 'phone', 'status']);
 
-        // Students: any user linked via group_students to groups in this center.
         $students = User::role('student')
-            ->whereHas('taughtGroups', function ($q) use ($centerId) {
-                $q->where('center_id', $centerId);
-            })
+            ->where('center_id', $centerId)
             ->get(['id', 'name', 'email', 'phone', 'status']);
 
-        // Parents (still need to be linked via students)
         $parents = User::role('parent')
-            ->whereHas('parentLinks', function ($q) use ($centerId) {
-                $q->whereHas('student.groups', function ($qq) use ($centerId) {
-                    $qq->whereHas('taughtGroups', function ($q) use ($centerId) {
-                $q->where('center_id', $centerId);
-            });
-                });
-            })
+            ->where('center_id', $centerId)
             ->get(['id', 'name', 'email', 'phone', 'status']);
 
         return $this->success([
@@ -110,6 +100,7 @@ class CenterAdminController extends Controller
         if (!$center) {
             return $this->error('Center not found for this admin.', 404);
         }
+        $centerId = $center->id;
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -124,7 +115,7 @@ class CenterAdminController extends Controller
             'password' => Hash::make($validated['password']),
             'phone' => $validated['phone'] ?? null,
             'status' => 'active',
-            'role' => 'teacher',
+            'center_id' => $centerId,
         ]);
         $user->assignRole('teacher');
         $user->load('roles');
@@ -145,6 +136,7 @@ class CenterAdminController extends Controller
         if (!$center) {
             return $this->error('Center not found for this admin.', 404);
         }
+        $centerId = $center->id;
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -159,7 +151,7 @@ class CenterAdminController extends Controller
             'password' => Hash::make($validated['password']),
             'phone' => $validated['phone'] ?? null,
             'status' => 'active',
-            'role' => 'assistant',
+            'center_id' => $centerId,
         ]);
         $user->assignRole('assistant');
         $user->load('roles');
@@ -180,6 +172,7 @@ class CenterAdminController extends Controller
         if (!$center) {
             return $this->error('Center not found for this admin.', 404);
         }
+        $centerId = $center->id;
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -194,7 +187,7 @@ class CenterAdminController extends Controller
             'password' => Hash::make($validated['password']),
             'phone' => $validated['phone'] ?? null,
             'status' => 'active',
-            'role' => 'student',
+            'center_id' => $centerId,
         ]);
         $user->assignRole('student');
         $user->load('roles');
@@ -216,7 +209,7 @@ class CenterAdminController extends Controller
             return $this->error('Center not found for this admin.', 404);
         }
 
-        if (!$user->hasRole('teacher') && $user->role !== 'teacher') {
+        if (!$user->hasRole('teacher')) {
             return $this->error('User is not a teacher.', 422);
         }
 
@@ -252,7 +245,7 @@ class CenterAdminController extends Controller
             return $this->error('Center not found for this admin.', 404);
         }
 
-        if (!$user->hasRole('assistant') && $user->role !== 'assistant') {
+        if (!$user->hasRole('assistant')) {
             return $this->error('User is not an assistant.', 422);
         }
 
@@ -278,7 +271,7 @@ class CenterAdminController extends Controller
             return $this->error('Center not found for this admin.', 404);
         }
 
-        if (!$user->hasRole('student') && $user->role !== 'student') {
+        if (!$user->hasRole('student')) {
             return $this->error('User is not a student.', 422);
         }
 

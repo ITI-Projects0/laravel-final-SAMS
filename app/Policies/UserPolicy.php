@@ -11,8 +11,7 @@ class UserPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['admin', 'center_admin'])
-            || in_array($user->role, ['admin', 'center_admin'], true);
+        return $user->hasAnyRole(['admin', 'center_admin']);
     }
 
     /**
@@ -21,7 +20,7 @@ class UserPolicy
     public function view(User $user, User $model): bool
     {
         // Admin and center admin can view users
-        if ($user->hasRole(['admin', 'center_admin']) || in_array($user->role, ['admin', 'center_admin'], true)) {
+        if ($user->hasAnyRole(['admin', 'center_admin'])) {
             return true;
         }
 
@@ -34,8 +33,7 @@ class UserPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole(['admin', 'center_admin', 'teacher', 'assistant'])
-            || in_array($user->role, ['admin', 'center_admin', 'teacher', 'assistant'], true);
+        return $user->hasAnyRole(['admin', 'center_admin', 'teacher', 'assistant']);
     }
 
     /**
@@ -44,17 +42,17 @@ class UserPolicy
     public function update(User $user, User $model): bool
     {
         // Center admin can update users in their center
-        if ($user->hasRole('center_admin') || $user->role === 'center_admin') {
+        if ($user->hasRole('center_admin')) {
             return $model->center_id === $user->ownedCenter?->id;
         }
 
         // Admin can update anyone
-        if ($user->hasRole('admin') || $user->role === 'admin') {
+        if ($user->hasRole('admin')) {
             return true;
         }
 
         // Teachers/Assistants can update users in their center
-        if ($user->hasRole(['teacher', 'assistant']) || in_array($user->role, ['teacher', 'assistant'], true)) {
+        if ($user->hasAnyRole(['teacher', 'assistant'])) {
             return $model->center_id === $user->center_id;
         }
 
@@ -67,12 +65,12 @@ class UserPolicy
     public function delete(User $user, User $model): bool
     {
         // Center admin can delete users in their center
-        if ($user->hasRole('center_admin') || $user->role === 'center_admin') {
+        if ($user->hasRole('center_admin')) {
             return $model->center_id === $user->ownedCenter?->id;
         }
 
         // Only admin can delete
-        return $user->hasRole('admin') || $user->role === 'admin';
+        return $user->hasRole('admin');
     }
 
     /**
@@ -80,7 +78,7 @@ class UserPolicy
      */
     public function restore(User $user, User $model): bool
     {
-        return $user->hasRole('admin') || $user->role === 'admin';
+        return $user->hasRole('admin');
     }
 
     /**
@@ -88,6 +86,6 @@ class UserPolicy
      */
     public function forceDelete(User $user, User $model): bool
     {
-        return $user->hasRole('admin') || $user->role === 'admin';
+        return $user->hasRole('admin');
     }
 }

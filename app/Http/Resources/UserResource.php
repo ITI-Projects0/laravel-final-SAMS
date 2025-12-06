@@ -22,7 +22,7 @@ class UserResource extends JsonResource
             'status' => $this->status,
             'center_id' => $this->center_id,
             'roles' => $this->whenLoaded('roles', fn() => $this->roles->pluck('name')),
-            'role' => $this->role,
+            'role' => $this->roles->first()->name ?? $this->getRoleNames()->first(),
             'center' => new CenterResource($this->whenLoaded('center')),
             'groups' => GroupResource::collection($this->whenLoaded('groups')),
             'groups_count' => $this->whenCounted('groups'),
@@ -31,4 +31,3 @@ class UserResource extends JsonResource
         ];
     }
 }
-

@@ -20,7 +20,7 @@ class AiStudentAnalysisFactory extends Factory
     {
         return [
             'center_id' => Center::factory(),
-            'student_id' => User::factory()->state(['role' => 'student']),
+            'student_id' => User::factory()->student(),
             'requested_by' => User::factory(),
             'summary' => fake()->sentence(8),
             'details' => fake()->paragraph(),

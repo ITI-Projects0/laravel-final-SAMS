@@ -33,8 +33,7 @@ class CenterPolicy
      */
     public function create(User $user): bool
     {
-        // return $this->isAdmin($user);
-        return false;
+        return $this->isAdmin($user);
     }
 
     /**
@@ -75,11 +74,11 @@ class CenterPolicy
 
     private function isAdmin(User $user): bool
     {
-        return $user->hasRole('admin') || $user->role === 'admin';
+        return $user->hasRole('admin');
     }
 
     private function isCenterAdmin(User $user): bool
     {
-        return $user->hasRole('center_admin') || $user->role === 'center_admin';
+        return $user->hasRole('center_admin');
     }
 }

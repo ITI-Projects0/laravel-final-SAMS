@@ -20,7 +20,7 @@ class GroupStudentFactory extends Factory
     {
         return [
             'group_id' => Group::factory(),
-            'student_id' => User::factory()->state(['role' => 'student']),
+            'student_id' => User::factory()->student(),
             'is_pay' => fake()->boolean(60),
             'status' => fake()->randomElement(['pending', 'approved', 'rejected']),
             'joined_at' => fake()->dateTimeBetween('-2 months', 'now'),

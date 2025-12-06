@@ -14,12 +14,7 @@ class LessonPolicy
     public function viewAny(User $user): bool
     {
         // Admin, center_admin, teacher, assistant can view lessons
-        return $user->hasRole(['admin', 'center_admin', 'teacher', 'assistant']) || in_array($user->role, [
-            'admin',
-            'center_admin',
-            'teacher',
-            'assistant',
-        ], true);
+        return $user->hasAnyRole(['admin', 'center_admin', 'teacher', 'assistant']);
     }
 
     /**
@@ -36,12 +31,7 @@ class LessonPolicy
     public function create(User $user): bool
     {
         // Teacher, assistant, center_admin, admin can create lessons
-        return $user->hasRole(['admin', 'center_admin', 'teacher', 'assistant']) || in_array($user->role, [
-            'admin',
-            'center_admin',
-            'teacher',
-            'assistant',
-        ], true);
+        return $user->hasAnyRole(['admin', 'center_admin', 'teacher', 'assistant']);
     }
 
     /**
@@ -78,7 +68,7 @@ class LessonPolicy
 
     protected function canAccessGroup(User $user, Lesson $lesson): bool
     {
-        if ($user->hasRole('admin') || $user->role === 'admin') {
+        if ($user->hasRole('admin')) {
             return true;
         }
 
@@ -94,12 +84,12 @@ class LessonPolicy
         }
 
         // Center admin of the center that owns the group
-        if (($user->hasRole('center_admin') || $user->role === 'center_admin') && $group->center?->user_id === $user->id) {
+        if ($user->hasRole('center_admin') && $group->center?->user_id === $user->id) {
             return true;
         }
 
         // Assistants: we allow assistants who are students/assistants in same center via groups relation
-        if ($user->hasRole('assistant') || $user->role === 'assistant') {
+        if ($user->hasRole('assistant')) {
             return $user->groups()->where('center_id', $group->center_id)->exists();
         }
 

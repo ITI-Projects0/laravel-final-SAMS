@@ -16,11 +16,30 @@ use Illuminate\Support\Str;
 class CenterAdminManagementController extends Controller
 {
     /**
+     * Resolve the center for the current user.
+     */
+    protected function resolveCenter(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            return null;
+        }
+
+        $center = $user->ownedCenter ?? $user->center;
+        if ($center && !$user->center_id) {
+            $user->center_id = $center->id;
+            $user->save();
+        }
+
+        return $center;
+    }
+
+    /**
      * Get comprehensive center statistics
      */
     public function stats(Request $request)
     {
-        $center = $request->user()->ownedCenter;
+        $center = $this->resolveCenter($request);
 
         if (!$center) {
             return $this->error('Center not found for this admin', 404);
@@ -45,7 +64,7 @@ class CenterAdminManagementController extends Controller
      */
     public function getUsers(Request $request)
     {
-        $center = $request->user()->ownedCenter;
+        $center = $this->resolveCenter($request);
         
         if (!$center) {
             return $this->error('Center not found for this admin', 404);
@@ -80,7 +99,7 @@ class CenterAdminManagementController extends Controller
             'student_id' => 'required_if:role,parent|exists:users,id',
         ]);
 
-        $center = $request->user()->ownedCenter;
+        $center = $this->resolveCenter($request);
 
         if (!$center) {
             return $this->error('Center not found for this admin', 404);
@@ -103,15 +122,23 @@ class CenterAdminManagementController extends Controller
 
             // Link student to group
             if ($validated['role'] === 'student' && isset($validated['group_id'])) {
-                $user->groups()->attach($validated['group_id'], [
-                    'status' => 'approved',
-                    'joined_at' => now(),
-                ]);
+                $group = Group::where('center_id', $center->id)->where('id', $validated['group_id'])->first();
+                if ($group) {
+                    $user->groups()->attach($group->id, [
+                        'status' => 'approved',
+                        'joined_at' => now(),
+                    ]);
+                }
             }
 
             // Link parent to student
             if ($validated['role'] === 'parent' && isset($validated['student_id'])) {
-                $user->children()->attach($validated['student_id'], [
+                $student = User::where('center_id', $center->id)->find($validated['student_id']);
+                if (!$student) {
+                    throw new \Exception('Student does not belong to this center');
+                }
+
+                $user->children()->attach($student->id, [
                     'relationship' => 'parent',
                 ]);
             }
@@ -140,6 +167,7 @@ class CenterAdminManagementController extends Controller
         $this->authorize('update', $user);
 
         $center = $request->user()->ownedCenter;
+        $center = $center ?: $this->resolveCenter($request);
 
         if (!$center || $user->center_id !== $center->id) {
             return $this->error('Unauthorized', 403);
@@ -168,6 +196,7 @@ class CenterAdminManagementController extends Controller
         $this->authorize('delete', $user);
 
         $center = $request->user()->ownedCenter;
+        $center = $center ?: $this->resolveCenter($request);
 
         if (!$center || $user->center_id !== $center->id) {
             return $this->error('Unauthorized', 403);

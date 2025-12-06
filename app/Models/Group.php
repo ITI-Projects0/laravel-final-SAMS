@@ -12,15 +12,14 @@ class Group extends Model
     protected $fillable = [
         'name',
         'description',
-        // 'join_code',
         'subject',
         'center_id',
         'teacher_id',
-        // 'is_approval_required',
-        'is_active',
+        'academic_year',
         'schedule_days',
         'schedule_time',
         'sessions_count',
+        'is_active',
     ];
 
     protected $casts = [

@@ -49,7 +49,6 @@ class TeacherController extends Controller
                 'phone' => ['nullable', 'string', 'max:20'],
             ]);
 
-            $validated['role'] = 'teacher';
             $validated['password'] = Hash::make($validated['password']);
 
             $user = User::create($validated);
@@ -74,7 +73,7 @@ class TeacherController extends Controller
     public function show(User $user)
     {
         try {
-            if (!$user->hasRole('teacher') && $user->role !== 'teacher') {
+            if (!$user->hasRole('teacher')) {
                 return $this->error(
                     message: 'This User Not Teacher',
                     status: 404

@@ -14,23 +14,22 @@ class GroupPolicy
 
     public function view(User $user, Group $group): bool
     {
-        return $user->id === $group->teacher_id;
+        return $this->canManage($user, $group);
     }
 
     public function create(User $user): bool
     {
-        return $user->hasRole(['admin', 'center_admin', 'teacher', 'assistant'])
-            || in_array($user->role, ['admin', 'center_admin', 'teacher', 'assistant'], true);
+        return $user->hasAnyRole(['admin', 'center_admin', 'teacher', 'assistant']);
     }
 
     public function update(User $user, Group $group): bool
     {
-        return $user->id === $group->teacher_id;
+        return $this->canManage($user, $group);
     }
 
     public function delete(User $user, Group $group): bool
     {
-        return $user->id === $group->teacher_id;
+        return $this->canManage($user, $group);
     }
 
     public function restore(User $user, Group $group): bool
@@ -41,5 +40,24 @@ class GroupPolicy
     public function forceDelete(User $user, Group $group): bool
     {
         return false;
+    }
+
+    protected function canManage(User $user, Group $group): bool
+    {
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        if ($user->hasRole('center_admin')) {
+            $centerId = $user->center_id ?? $user->ownedCenter?->id;
+            if ($centerId && $group->center_id === $centerId) {
+                return true;
+            }
+            if ($group->center && $group->center->user_id === $user->id) {
+                return true;
+            }
+        }
+
+        return $group->teacher_id === $user->id;
     }
 }

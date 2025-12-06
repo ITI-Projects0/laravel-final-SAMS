@@ -23,7 +23,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',
         'phone',
         'status',
         'activation_code',
@@ -46,38 +45,37 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
-        'role' => 'string',
         'status' => 'string',
     ];
 
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->hasRole('admin');
     }
 
     public function isCenterAdmin(): bool
     {
-        return $this->role === 'center_admin';
+        return $this->hasRole('center_admin');
     }
 
     public function isTeacher(): bool
     {
-        return $this->role === 'teacher';
+        return $this->hasRole('teacher');
     }
 
     public function isAssistant(): bool
     {
-        return $this->role === 'assistant';
+        return $this->hasRole('assistant');
     }
 
     public function isStudent(): bool
     {
-        return $this->role === 'student';
+        return $this->hasRole('student');
     }
 
     public function isParent(): bool
     {
-        return $this->role === 'parent';
+        return $this->hasRole('parent');
     }
 
     public function isActive(): bool

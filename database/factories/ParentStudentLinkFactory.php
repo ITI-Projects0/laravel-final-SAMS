@@ -18,8 +18,8 @@ class ParentStudentLinkFactory extends Factory
     public function definition(): array
     {
         return [
-            'parent_id' => User::factory()->state(['role' => 'parent']),
-            'student_id' => User::factory()->state(['role' => 'student']),
+            'parent_id' => User::factory()->parentRole(),
+            'student_id' => User::factory()->student(),
             'relationship' => fake()->randomElement(['father', 'mother', 'guardian']),
             'created_at' => now(),
         ];

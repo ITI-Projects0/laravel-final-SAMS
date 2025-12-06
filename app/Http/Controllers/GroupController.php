@@ -18,7 +18,12 @@ class GroupController extends Controller
                 ->withCount('students as students_count');
 
             $user = Auth::user();
-            if (!$user?->hasRole('admin') && $user?->role !== 'admin') {
+            if ($user?->hasRole('center_admin')) {
+                $centerId = $user->center_id ?? $user->ownedCenter?->id;
+                if ($centerId) {
+                    $query->where('center_id', $centerId);
+                }
+            } elseif (!$user?->hasRole('admin')) {
                 $query->where('teacher_id', $user?->id);
             }
 

@@ -17,12 +17,14 @@ class RegisterRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email:rfc', 'max:255', 'unique:users,email'],
+            'phone' => ['required', 'string', 'min:11', 'max:15'],
             'password' => [
                 'required',
                 'string',
                 'confirmed',
                 Password::min(8)->letters()->mixedCase()->numbers()->symbols(),
             ],
+            'center_name' => ['nullable', 'string', 'max:255'],
         ];
     }
 

@@ -20,7 +20,7 @@ class AssessmentResultFactory extends Factory
     {
         return [
             'assessment_id' => Assessment::factory(),
-            'student_id' => User::factory()->state(['role' => 'student']),
+            'student_id' => User::factory()->student(),
             'score' => fake()->randomFloat(2, 40, 100),
             'remarks' => fake()->sentence(),
         ];

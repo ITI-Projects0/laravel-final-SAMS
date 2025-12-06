@@ -13,12 +13,7 @@ class AttendancePolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['admin', 'center_admin', 'teacher', 'assistant']) || in_array($user->role, [
-            'admin',
-            'center_admin',
-            'teacher',
-            'assistant',
-        ], true);
+        return $user->hasAnyRole(['admin', 'center_admin', 'teacher', 'assistant']);
     }
 
     /**
@@ -71,7 +66,7 @@ class AttendancePolicy
 
     protected function canAccessAttendance(User $user, Attendance $attendance): bool
     {
-        if ($user->hasRole('admin') || $user->role === 'admin') {
+        if ($user->hasRole('admin')) {
             return true;
         }
 
@@ -81,7 +76,7 @@ class AttendancePolicy
 
     protected function canAccessCenter(User $user, ?int $centerId): bool
     {
-        if ($user->hasRole('admin') || $user->role === 'admin') {
+        if ($user->hasRole('admin')) {
             return true;
         }
 
@@ -90,12 +85,12 @@ class AttendancePolicy
         }
 
         // Center admin of this center
-        if ($user->hasRole('center_admin') || $user->role === 'center_admin') {
+        if ($user->hasRole('center_admin')) {
             return $user->center?->id === $centerId;
         }
 
         // Teacher/assistant who teaches/works in this center via groups
-        if ($user->hasRole(['teacher', 'assistant']) || in_array($user->role, ['teacher', 'assistant'], true)) {
+        if ($user->hasAnyRole(['teacher', 'assistant'])) {
             return $user->taughtGroups()->where('center_id', $centerId)->exists()
                 || $user->groups()->where('center_id', $centerId)->exists();
         }

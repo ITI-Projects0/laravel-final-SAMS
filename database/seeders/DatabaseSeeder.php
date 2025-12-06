@@ -94,37 +94,209 @@ class DatabaseSeeder extends Seeder
         ]);
         $parentUser->assignRole('parent');
 
-        $centerAdmins = User::factory(3)->create();
-        $teachers = User::factory(6)->create();
-        $assistants = User::factory(3)->create();
-        $parents = User::factory(5)->create();
-        $students = User::factory(20)->create();
+        $centerAdmins = User::factory(3)->create([
+            'status' => 'active',
+        ])->each(function (User $user) {
+            $user->assignRole('center_admin');
+        });
+
+        $teachers = User::factory(8)->create([
+            'status' => 'active',
+        ])->each(function (User $user) {
+            $user->assignRole('teacher');
+        });
+
+        $assistants = User::factory(4)->create([
+            'status' => 'active',
+        ])->each(function (User $user) {
+            $user->assignRole('assistant');
+        });
+
+        $parents = User::factory(6)->create([
+            'status' => 'active',
+        ])->each(function (User $user) {
+            $user->assignRole('parent');
+        });
+
+        $students = User::factory(40)->create([
+            'status' => 'active',
+        ])->each(function (User $user) {
+            $user->assignRole('student');
+        });
 
         // ---------- CENTERS ----------
         $centers = collect();
         foreach ($centerAdmins as $centerAdmin) {
-            $centers->push(
-                Center::factory()->create([
-                    'user_id' => $centerAdmin->id,
+            $center = Center::factory()->create([
+                'user_id' => $centerAdmin->id,
+            ]);
+
+            $centerAdmins->find($centerAdmin->id)?->update(['center_id' => $center->id]);
+            $centers->push($center);
+        }
+
+        if ($centers->isNotEmpty()) {
+            $primaryCenterId = $centers->first()->id;
+            $studentUser->update(['center_id' => $primaryCenterId]);
+            $parentUser->update(['center_id' => $primaryCenterId]);
+        }
+
+        // Demo center admin for testing
+        $demoCenterAdmin = User::factory()->create([
+            'name' => 'Demo Center Admin',
+            'email' => 'center.admin@example.com',
+            'status' => 'active',
+        ]);
+        $demoCenterAdmin->assignRole('center_admin');
+        $demoCenter = Center::factory()->create([
+            'user_id' => $demoCenterAdmin->id,
+            'name' => 'Demo Center',
+        ]);
+        $demoCenterAdmin->update(['center_id' => $demoCenter->id]);
+        $centers->push($demoCenter);
+        $centerAdmins->push($demoCenterAdmin);
+
+        // Deterministic staff & students for demo center (so the staff dashboard always has data)
+        $demoTeacher = User::factory()->create([
+            'name' => 'Demo Teacher',
+            'email' => 'teacher.demo@example.com',
+            'status' => 'active',
+            'center_id' => $demoCenter->id,
+        ]);
+        $demoTeacher->assignRole($roleTeacher);
+
+        $demoAssistant = User::factory()->create([
+            'name' => 'Demo Assistant',
+            'email' => 'assistant.demo@example.com',
+            'status' => 'active',
+            'center_id' => $demoCenter->id,
+        ]);
+        $demoAssistant->assignRole($roleAssistant);
+
+        $demoStudents = collect();
+        foreach (range(1, 8) as $index) {
+            $student = User::factory()->create([
+                'name' => "Demo Student {$index}",
+                'email' => "student{$index}.demo@example.com",
+                'status' => 'active',
+                'center_id' => $demoCenter->id,
+            ]);
+            $student->assignRole($roleStudent);
+            $demoStudents->push($student);
+        }
+
+        $demoParents = collect();
+        foreach (range(1, 3) as $index) {
+            $parent = User::factory()->create([
+                'name' => "Demo Parent {$index}",
+                'email' => "parent{$index}.demo@example.com",
+                'status' => 'active',
+                'center_id' => $demoCenter->id,
+            ]);
+            $parent->assignRole($roleParent);
+            $demoParents->push($parent);
+        }
+
+        $demoGroups = collect();
+        foreach (['Elite Physics Cohort', 'SAT Crash Course'] as $name) {
+            $demoGroups->push(
+                Group::factory()->create([
+                    'center_id' => $demoCenter->id,
+                    'teacher_id' => $demoTeacher->id,
+                    'name' => $name,
+                    'is_active' => true,
                 ])
             );
+        }
+
+        foreach ($demoGroups as $group) {
+            $assignedStudents = $demoStudents->shuffle()->take(6);
+
+            foreach ($assignedStudents as $student) {
+                GroupStudent::factory()->create([
+                    'group_id' => $group->id,
+                    'student_id' => $student->id,
+                    'status' => 'approved',
+                    'is_pay' => true,
+                    'joined_at' => now()->subDays(random_int(5, 20)),
+                ]);
+            }
+
+            Lesson::factory(4)->create([
+                'group_id' => $group->id,
+            ]);
+        }
+
+        foreach ($demoParents as $parent) {
+            $child = $demoStudents->random();
+            ParentStudentLink::factory()->create([
+                'parent_id' => $parent->id,
+                'student_id' => $child->id,
+                'relationship' => $faker->randomElement(['father', 'mother', 'guardian']),
+            ]);
+        }
+
+        foreach ($demoStudents as $student) {
+            Attendance::factory()->create([
+                'center_id' => $demoCenter->id,
+                'group_id' => $demoGroups->random()->id,
+                'student_id' => $student->id,
+                'date' => now()->subDays(random_int(0, 7))->toDateString(),
+                'status' => $faker->randomElement(['present', 'absent', 'late', 'excused']),
+                'marked_by' => $demoTeacher->id,
+            ]);
         }
 
         // ---------- GROUPS ----------
         $groups = collect();
         foreach ($centers as $center) {
+            $centerTeachers = $teachers->where('center_id', $center->id);
+            if ($centerTeachers->isEmpty()) {
+                $teacher = $teachers->whereNull('center_id')->shift() ?? $teachers->random();
+                $teacher->center_id = $center->id;
+                $teacher->save();
+                $centerTeachers = $teachers->where('center_id', $center->id);
+            }
+
             $groupsForCenter = Group::factory(3)->create([
                 'center_id' => $center->id,
-                'teacher_id' => $teachers->random()->id,
+                'teacher_id' => $centerTeachers->random()->id,
             ]);
 
             $groups = $groups->merge($groupsForCenter);
         }
 
+        // Assign center_id to staff & students where missing
+        foreach ($teachers as $teacher) {
+            if (!$teacher->center_id) {
+                $teacher->center_id = $centers->random()->id;
+                $teacher->save();
+            }
+        }
+
+        foreach ($assistants as $assistant) {
+            $assistant->center_id = $centers->random()->id;
+            $assistant->save();
+        }
+
+        foreach ($students as $student) {
+            $student->center_id = $centers->random()->id;
+            $student->save();
+        }
+
+        foreach ($parents as $parent) {
+            $parent->center_id = $centers->random()->id;
+            $parent->save();
+        }
+
         // ---------- PARENT–STUDENT LINKS ----------
         $parentStudentLinks = collect();
         foreach ($parents as $parent) {
-            $randomStudents = $students->random(3);
+            $randomStudents = $students->where('center_id', $parent->center_id)->shuffle()->take(3);
+            if ($randomStudents->isEmpty()) {
+                $randomStudents = $students->shuffle()->take(3);
+            }
+
             foreach ($randomStudents as $student) {
                 $parentStudentLinks->push(
                     ParentStudentLink::factory()->create([
@@ -139,7 +311,11 @@ class DatabaseSeeder extends Seeder
         // ---------- GROUP–STUDENT ENROLLMENT ----------
         $groupStudents = collect();
         foreach ($groups as $group) {
-            $randomStudents = $students->random(6);
+            $centerStudents = $students->where('center_id', $group->center_id);
+            $randomStudents = $centerStudents->isEmpty()
+                ? $students->shuffle()->take(6)
+                : $centerStudents->shuffle()->take(min(8, $centerStudents->count()));
+
             foreach ($randomStudents as $student) {
                 $groupStudents->push(
                     GroupStudent::factory()->create([

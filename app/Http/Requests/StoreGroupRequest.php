@@ -27,8 +27,10 @@ class StoreGroupRequest extends FormRequest
             'subject' => 'required|string|max:100',
             'center_id' => 'required|exists:centers,id',
             'teacher_id' => 'required|exists:users,id',
-            // 'join_code' => 'nullable|string|unique:groups,join_code',
-            // 'is_approval_required' => 'boolean',
+            'academic_year' => 'nullable|string|max:50',
+            'schedule_days' => 'nullable|array',
+            'schedule_time' => 'nullable|date_format:H:i',
+            'sessions_count' => 'nullable|integer|min:1',
             'is_active' => 'boolean',
         ];
     }

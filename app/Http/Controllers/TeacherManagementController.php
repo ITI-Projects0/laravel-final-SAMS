@@ -53,7 +53,7 @@ class TeacherManagementController extends Controller
                 'teacher_id' => $user->id,
                 'name' => $validated['name'],
                 'subject' => $validated['subject'],
-                'description' => $validated['description'],
+                'description' => $validated['description'] ?? null,
                 'schedule_days' => $validated['schedule_days'],
                 'schedule_time' => $validated['schedule_time'],
                 'sessions_count' => $validated['sessions_count'],

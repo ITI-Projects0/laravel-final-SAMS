@@ -23,7 +23,7 @@ class NotificationFactory extends Factory
             'center_id' => Center::factory(),
             'sender_id' => User::factory(),
             'recipient_id' => User::factory(),
-            'related_student_id' => User::factory()->state(['role' => 'student']),
+            'related_student_id' => User::factory()->student(),
             'related_group_id' => Group::factory(),
             'type' => fake()->randomElement(['low_performance', 'attendance', 'general']),
             'title' => fake()->sentence(4),

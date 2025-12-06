@@ -6,7 +6,6 @@ use App\Models\Group;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class GroupStudentController extends Controller
 {
@@ -18,7 +17,7 @@ class GroupStudentController extends Controller
         }
 
         // Admin can manage all
-        if ($user->hasRole('admin') || $user->role === 'admin') {
+        if ($user->hasRole('admin')) {
             return true;
         }
 
@@ -28,13 +27,20 @@ class GroupStudentController extends Controller
         }
 
         // Center admin for this group center
-        if (($user->hasRole('center_admin') || $user->role === 'center_admin') && $group->center?->user_id === $user->id) {
-            return true;
+        if ($user->hasRole('center_admin')) {
+            $centerId = $user->center_id ?? $user->ownedCenter?->id;
+            if ($group->center?->user_id === $user->id) {
+                return true;
+            }
+            if ($centerId && $group->center_id === $centerId) {
+                return true;
+            }
         }
 
         // Assistant within same center (enrolled in any group of this center)
-        if ($user->hasRole('assistant') || $user->role === 'assistant') {
-            return $user->groups()->where('center_id', $group->center_id)->exists();
+        if ($user->hasRole('assistant')) {
+            return $user->center_id === $group->center_id
+                || $user->groups()->where('center_id', $group->center_id)->exists();
         }
 
         return false;
@@ -53,19 +59,6 @@ class GroupStudentController extends Controller
         return $this->success($students, 'Group students retrieved successfully.');
     }
 
-    public function requests(Group $group)
-    {
-        if (!$this->canManageGroup($group)) {
-            return $this->error('Unauthorized.', 403);
-        }
-
-        $students = $group->pendingStudents()
-            ->select('users.id', 'users.name', 'users.email', 'users.phone')
-            ->get();
-
-        return $this->success($students, 'Group join requests retrieved successfully.');
-    }
-
     public function store(Request $request, Group $group)
     {
         if (!$this->canManageGroup($group)) {
@@ -78,7 +71,7 @@ class GroupStudentController extends Controller
 
         /** @var User $student */
         $student = User::findOrFail($data['student_id']);
-        if (!$student->hasRole('student') && $student->role !== 'student') {
+        if (!$student->hasRole('student')) {
             return $this->error('User is not a student.', 422);
         }
 
@@ -93,54 +86,4 @@ class GroupStudentController extends Controller
         return $this->success(null, 'Student added to group successfully.', 201);
     }
 
-    public function approve(Group $group, User $student)
-    {
-        if (!$this->canManageGroup($group)) {
-            return $this->error('Unauthorized.', 403);
-        }
-
-        $exists = DB::table('group_students')
-            ->where('group_id', $group->id)
-            ->where('student_id', $student->id)
-            ->exists();
-
-        if (!$exists) {
-            return $this->error('Membership not found.', 404);
-        }
-
-        DB::table('group_students')
-            ->where('group_id', $group->id)
-            ->where('student_id', $student->id)
-            ->update([
-                'status' => 'approved',
-                'joined_at' => now(),
-            ]);
-
-        return $this->success(null, 'Join request approved.');
-    }
-
-    public function reject(Group $group, User $student)
-    {
-        if (!$this->canManageGroup($group)) {
-            return $this->error('Unauthorized.', 403);
-        }
-
-        $exists = DB::table('group_students')
-            ->where('group_id', $group->id)
-            ->where('student_id', $student->id)
-            ->exists();
-
-        if (!$exists) {
-            return $this->error('Membership not found.', 404);
-        }
-
-        DB::table('group_students')
-            ->where('group_id', $group->id)
-            ->where('student_id', $student->id)
-            ->update(['status' => 'rejected']);
-
-        return $this->success(null, 'Join request rejected.');
-    }
 }
-
-

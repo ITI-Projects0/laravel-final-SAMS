@@ -22,10 +22,10 @@ class AttendanceFactory extends Factory
         return [
             'center_id' => Center::factory(),
             'group_id' => Group::factory(),
-            'student_id' => User::factory()->state(['role' => 'student']),
+            'student_id' => User::factory()->student(),
             'date' => fake()->date(),
             'status' => fake()->randomElement(['present', 'absent', 'late', 'excused']),
-            'marked_by' => User::factory()->state(['role' => 'teacher']),
+            'marked_by' => User::factory()->teacher(),
             'created_at' => now(),
         ];
     }

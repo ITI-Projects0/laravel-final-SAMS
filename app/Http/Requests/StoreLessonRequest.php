@@ -24,10 +24,10 @@ class StoreLessonRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'scheduled_at' => ['nullable', 'date'],
+            'scheduled_at' => ['required', 'date'],
         ];
     }
-    
+
     public function messages(): array
     {
         return [

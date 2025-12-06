@@ -23,7 +23,9 @@ class UserController extends Controller
             $query = User::with('roles:id,name');
             if (request()->filled('role')) {
                 $role = request()->string('role')->toString();
-                $query->where('role', $role);
+                $query->whereHas('roles', function ($q) use ($role) {
+                    $q->where('name', $role);
+                });
             }
 
             $users = $query->paginate(20);
@@ -55,11 +57,14 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'phone' => ['required', 'string', 'max:20'],
             'status' => ['nullable', 'string', 'max:50'],
             'role' => ['nullable', 'string', 'max:50'],
             'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ]);
+
+        $roleToAssign = $validated['role'] ?? null;
+        unset($validated['role']);
 
         $validated['password'] = Hash::make($validated['password']);
 
@@ -70,8 +75,8 @@ class UserController extends Controller
 
         $user = User::create($validated);
 
-        if (!empty($validated['role'])) {
-            $user->assignRole($validated['role']);
+        if (!empty($roleToAssign)) {
+            $user->assignRole($roleToAssign);
         }
 
         return $this->success(
@@ -125,6 +130,9 @@ class UserController extends Controller
             'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ]);
 
+        $roleToAssign = $validated['role'] ?? null;
+        unset($validated['role']);
+
         if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
@@ -138,8 +146,8 @@ class UserController extends Controller
 
         $user->update($validated);
 
-        if (!empty($validated['role'])) {
-            $user->syncRoles([$validated['role']]);
+        if (!empty($roleToAssign)) {
+            $user->syncRoles([$roleToAssign]);
         }
 
         return $this->success(

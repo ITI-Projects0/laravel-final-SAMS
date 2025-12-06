@@ -33,10 +33,12 @@ Route::prefix('auth')->group(function () {
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
+    Route::put('/me', [AuthController::class, 'updateProfile']);
+    Route::put('/me/password', [AuthController::class, 'updatePassword']);
 
     // Teacher/Center Admin Stats
     Route::get('/teacher/stats', [TeacherStatsController::class, 'stats'])
-        ->middleware('role:teacher,assistant,center_admin');
+        ->middleware('role:teacher|assistant|center_admin');
 
     Route::prefix('teachers')->group(function () {
         Route::get('/', [TeacherController::class, 'index']);
@@ -60,7 +62,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // adding or removing roles from user
-    Route::post('/users/{user}/roles', [UserController::class, 'assignRole']);
+    Route::post('/users/{user}/roles', [UserController::class, 'assignRole'])->middleware('role:admin');
     Route::delete('/users/{user}/roles/{role}', [UserController::class, 'removeRole'])->middleware('role:admin');
 
     // Lessons within groups (teachers/assistants/center_admin/admin)
@@ -72,17 +74,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Group students management (teachers/assistants/center_admin/admin)
     Route::get('/groups/{group}/students', [GroupStudentController::class, 'index']);
-    Route::get('/groups/{group}/join-requests', [GroupStudentController::class, 'requests']);
     Route::post('/groups/{group}/students', [GroupStudentController::class, 'store']);
-    Route::post('/groups/{group}/join-requests/{student}/approve', [GroupStudentController::class, 'approve']);
-    Route::post('/groups/{group}/join-requests/{student}/reject', [GroupStudentController::class, 'reject']);
 
     // Attendance management
     Route::get('/groups/{group}/attendance', [AttendanceController::class, 'index']);
     Route::post('/groups/{group}/attendance', [AttendanceController::class, 'store']);
 
     // Teacher Management Routes (NEW)
-    Route::prefix('teacher-management')->middleware('role:teacher,assistant')->group(function () {
+    Route::prefix('teacher-management')->middleware('role:teacher|assistant')->group(function () {
         Route::post('/groups', [TeacherManagementController::class, 'storeGroup']);
         Route::post('/users', [TeacherManagementController::class, 'storeUser']);
     });
