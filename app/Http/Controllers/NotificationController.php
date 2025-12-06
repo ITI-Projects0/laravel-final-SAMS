@@ -2,65 +2,124 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Notification;
-use App\Http\Requests\StoreNotificationRequest;
-use App\Http\Requests\UpdateNotificationRequest;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class NotificationController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Get all notifications for the authenticated user
      */
-    public function index()
+    public function index(Request $request)
     {
-        //
+        $user = Auth::user();
+
+        $notifications = $user->notifications()
+            ->orderBy('created_at', 'desc')
+            ->paginate($request->get('per_page', 15));
+
+        return response()->json([
+            'success' => true,
+            'data' => $notifications,
+        ]);
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Get latest 10 notifications
      */
-    public function create()
+    public function latest()
     {
-        //
+        $user = Auth::user();
+
+        $notifications = $user->notifications()
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $notifications,
+        ]);
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Get unread notifications count
      */
-    public function store(StoreNotificationRequest $request)
+    public function unreadCount()
     {
-        //
+        $user = Auth::user();
+
+        $count = $user->unreadNotifications()->count();
+
+        return response()->json([
+            'success' => true,
+            'count' => $count,
+        ]);
     }
 
     /**
-     * Display the specified resource.
+     * Mark a specific notification as read
      */
-    public function show(Notification $notification)
+    public function markAsRead($id)
     {
-        //
+        $user = Auth::user();
+
+        $notification = $user->notifications()->findOrFail($id);
+
+        if (!$notification->read_at) {
+            $notification->markAsRead();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Notification marked as read',
+            'notification' => $notification,
+        ]);
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Mark all notifications as read
      */
-    public function edit(Notification $notification)
+    public function markAllAsRead()
     {
-        //
+        $user = Auth::user();
+
+        $user->unreadNotifications->markAsRead();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'All notifications marked as read',
+        ]);
     }
 
     /**
-     * Update the specified resource in storage.
+     * Delete a specific notification
      */
-    public function update(UpdateNotificationRequest $request, Notification $notification)
+    public function destroy($id)
     {
-        //
+        $user = Auth::user();
+
+        $notification = $user->notifications()->findOrFail($id);
+        $notification->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Notification deleted',
+        ]);
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Delete all notifications
      */
-    public function destroy(Notification $notification)
+    public function destroyAll()
     {
-        //
+        $user = Auth::user();
+
+        $user->notifications()->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'All notifications deleted',
+        ]);
     }
 }

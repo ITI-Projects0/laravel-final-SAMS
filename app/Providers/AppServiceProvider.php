@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Observers\NotificationObserver;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Broadcast notifications when they are stored in the database
+        DatabaseNotification::observe(NotificationObserver::class);
     }
 }
