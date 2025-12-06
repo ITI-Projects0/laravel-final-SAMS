@@ -9,54 +9,65 @@ use Illuminate\Support\Facades\Auth;
 
 class GroupStudentController extends Controller
 {
-    protected function canManageGroup(Group $group): bool
+    public function canManageGroup(Group $group): bool
     {
+        /** @var User|null $user */
         $user = Auth::user();
         if (!$user) {
             return false;
         }
 
-        // Admin can manage all
-        if ($user->hasRole('admin')) {
+        // Broad permissions first (super-admin or explicit permissions)
+        if ($user->hasRole('admin') || $user->can('manage groups') || $user->can('manage attendance')) {
             return true;
         }
 
-        // Group teacher
-        if ($group->teacher_id === $user->id) {
+        $group->loadMissing('center');
+        $userCenterId = $user->center_id ?? $user->ownedCenter?->id;
+
+        // Teacher directly assigned to the group
+        if ($user->hasRole('teacher') && $group->teacher_id === $user->id) {
             return true;
         }
 
-        // Center admin for this group center
-        if ($user->hasRole('center_admin')) {
-            $centerId = $user->center_id ?? $user->ownedCenter?->id;
-            if ($group->center?->user_id === $user->id) {
-                return true;
-            }
-            if ($centerId && $group->center_id === $centerId) {
-                return true;
-            }
+        // Center admin over the group center
+        if ($user->hasRole('center_admin') && $userCenterId && $group->center_id === $userCenterId) {
+            return true;
         }
 
-        // Assistant within same center (enrolled in any group of this center)
-        if ($user->hasRole('assistant')) {
-            return $user->center_id === $group->center_id
-                || $user->groups()->where('center_id', $group->center_id)->exists();
+        // Assistant working within the same center
+        if ($user->hasRole('assistant') && $userCenterId && $group->center_id === $userCenterId) {
+            return true;
         }
 
         return false;
     }
 
-    public function index(Group $group)
+    public function index(Request $request, Group $group)
     {
+        if (!$group->exists) {
+            $groupId = $request->route('group') ?? $request->input('group_id');
+            $group = Group::with('center')->find($groupId);
+            if (!$group) {
+                return $this->error('Group not found.', 404);
+            }
+        }
+
         if (!$this->canManageGroup($group)) {
             return $this->error('Unauthorized.', 403);
         }
 
-        $students = $group->students()
-            ->select('users.id', 'users.name', 'users.email', 'users.phone')
-            ->get();
+        $group->load([
+            'students' => fn($q) => $q->select('users.id', 'users.name', 'users.email', 'users.phone')
+                ->withPivot('status', 'joined_at', 'is_pay'),
+            'pendingStudents' => fn($q) => $q->select('users.id', 'users.name', 'users.email', 'users.phone')
+                ->withPivot('status', 'joined_at', 'is_pay'),
+        ]);
 
-        return $this->success($students, 'Group students retrieved successfully.');
+        return $this->success([
+            'approved' => $group->students,
+            'pending' => $group->pendingStudents,
+        ], 'Group students retrieved successfully.');
     }
 
     public function store(Request $request, Group $group)

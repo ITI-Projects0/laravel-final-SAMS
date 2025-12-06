@@ -113,7 +113,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/assistants/{user}', [CenterAdminController::class, 'destroyAssistant']);
         Route::delete('/students/{user}', [CenterAdminController::class, 'destroyStudent']);
     });
-  
+
   Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
         Route::get('/latest', [NotificationController::class, 'latest']);

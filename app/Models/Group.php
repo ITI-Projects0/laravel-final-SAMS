@@ -46,11 +46,10 @@ class Group extends Model
     public function students()
     {
         return $this->belongsToMany(User::class, 'group_students', 'group_id', 'student_id')
-            ->withPivot('status', 'joined_at')
+            ->withPivot('status', 'joined_at', 'is_pay')
             ->where('group_students.status', 'approved')
             ->whereHas('roles', function ($query) {
-                $query->where('name', 'student')
-                    ->where('guard_name', config('permission.defaults.guard'));
+                $query->where('name', 'student');
             })
             ->withTimestamps();
     }
@@ -58,11 +57,10 @@ class Group extends Model
     public function pendingStudents()
     {
         return $this->belongsToMany(User::class, 'group_students', 'group_id', 'student_id')
-            ->withPivot('status', 'joined_at')
+            ->withPivot('status', 'joined_at', 'is_pay')
             ->where('group_students.status', 'pending')
             ->whereHas('roles', function ($query) {
-                $query->where('name', 'student')
-                    ->where('guard_name', config('permission.defaults.guard'));
+                $query->where('name', 'student');
             })
             ->withTimestamps();
     }

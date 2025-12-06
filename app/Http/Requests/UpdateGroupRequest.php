@@ -28,6 +28,10 @@ class UpdateGroupRequest extends FormRequest
             'subject' => 'required|string|max:100',
             'center_id' => 'required|exists:centers,id',
             'teacher_id' => 'required|exists:users,id',
+            'academic_year' => 'nullable|string|max:50',
+            'schedule_days' => 'nullable|array',
+            'schedule_time' => 'nullable|date_format:H:i',
+            'sessions_count' => 'nullable|integer|min:1',
 
             // 'join_code' => [
             //     'nullable',

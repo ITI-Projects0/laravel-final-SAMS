@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 use App\Mail\ActivationCodeMail;
 use App\Mail\ResetCodeMail;
+use App\Models\Center;
 use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -45,7 +46,7 @@ class AuthController extends Controller
 
             $centerName = $validated['center_name'] ?? $user->name;
 
-            $center = \App\Models\Center::create([
+            $center = Center::create([
                 'user_id' => $user->id,
                 'name' => $centerName,
                 'logo_url' => null,
@@ -68,7 +69,7 @@ class AuthController extends Controller
 
             return $this->success([
                 'user' => array_merge(
-                    $user->only(['id', 'name', 'email', 'phone', 'status']),
+                    $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id']),
                     [
                         'roles' => $user->getRoleNames(),
                         'role' => $user->getRoleNames()->first(),
@@ -186,7 +187,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Login successful.',
             'user' => array_merge(
-                $user->only(['id', 'name', 'email', 'phone', 'status']),
+                $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id']),
                 ['roles' => $user->getRoleNames()]
             ),
             'token' => $token,
@@ -214,7 +215,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Login successful.',
             'user' => array_merge(
-                $user->only(['id', 'name', 'email', 'phone', 'status']),
+                $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id']),
                 ['roles' => $user->getRoleNames()]
             ),
             'token' => $token,
@@ -232,7 +233,7 @@ class AuthController extends Controller
     {
         $user = User::findOrFail(Auth::id());
         return $this->success(array_merge(
-            $user->only(['id', 'name', 'email', 'phone', 'status', 'avatar']),
+            $user->only(['id', 'name', 'email', 'phone', 'status', 'avatar', 'center_id']),
             ['roles' => $user->getRoleNames()]
         ));
     }
@@ -263,7 +264,7 @@ class AuthController extends Controller
         $user->save();
 
         return $this->success(array_merge(
-            $user->only(['id', 'name', 'email', 'phone', 'status', 'avatar']),
+            $user->only(['id', 'name', 'email', 'phone', 'status', 'avatar', 'center_id']),
             ['roles' => $user->getRoleNames()]
         ), 'Profile updated successfully.');
     }

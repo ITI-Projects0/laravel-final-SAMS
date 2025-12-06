@@ -17,21 +17,40 @@ class AttendanceController extends Controller
         return $groupStudentController->canManageGroup($group);
     }
 
-    public function index(Group $group, Request $request)
+    public function index(Request $request, Group $group)
     {
-        if (!$this->canManageGroup($group)) {
-            return $this->error('Unauthorized.', 403);
+        try {
+            $routeGroupId = $request->route('group') ?? $request->input('group_id');
+
+            // Ensure we are working with the requested group id
+            if (!$group->exists || ($routeGroupId && (int) $group->id !== (int) $routeGroupId)) {
+                $group = Group::with('center')->find($routeGroupId);
+            }
+
+            if (!$group) {
+                return $this->error('Group not found.', 404);
+            }
+
+            if (!$this->canManageGroup($group)) {
+                return $this->error('Unauthorized.', 403);
+            }
+
+            $query = Attendance::where('group_id', $group->id);
+
+            if ($request->filled('date')) {
+                $query->where('date', $request->string('date')->toString());
+            }
+
+            $records = $query->with(['student', 'group', 'markedBy'])->get();
+
+            return $this->success(AttendanceResource::collection($records), 'Attendance records retrieved successfully.');
+        } catch (\Throwable $e) {
+            return $this->error(
+                message: 'Failed to retrieve attendance records.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null
+            );
         }
-
-        $query = Attendance::where('group_id', $group->id);
-
-        if ($request->filled('date')) {
-            $query->whereDate('date', $request->string('date')->toString());
-        }
-
-        $records = $query->with(['student', 'group', 'markedBy'])->get();
-
-        return $this->success(AttendanceResource::collection($records), 'Attendance records retrieved successfully.');
     }
 
     public function store(StoreAttendanceRequest $request, Group $group)
@@ -63,5 +82,3 @@ class AttendanceController extends Controller
         return $this->success(null, 'Attendance saved successfully.');
     }
 }
-
-
