@@ -18,40 +18,24 @@ class UserController extends Controller
      */
     public function index()
     {
-        $perPage = request()->integer('per_page', 20);
-        $role = request()->string('role')->toString();
+        // return all users as JSON
+        try {
+            $query = User::with('roles:id,name');
+            if (request()->filled('role')) {
+                $role = request()->string('role')->toString();
+                $query->where('role', $role);
+            }
 
-        $query = User::with(['roles:id,name', 'center:id,name']);
-
-        if ($role !== '') {
-            $query->whereHas('roles', fn($q) => $q->where('name', $role));
-        }
-
-        // Eager load role-specific relations for admin listings
-        if ($role === 'student') {
-            $query->with([
-                'groups' => fn($q) => $q
-                    ->with('center:id,name')
-                    ->withCount('students')
-            ]);
-        }
-
-        if ($role === 'parent') {
-            $query->with([
-                'children' => fn($q) => $q->with([
-                    'groups' => fn($g) => $g
-                        ->with('center:id,name')
-                        ->withCount('students')
-                ])
-            ]);
-        }
-
-        $users = $query->orderBy('id')->paginate($perPage);
-
-        return $this->success(
+            $users = $query->paginate(20);
+            return $this->success(
             data: $users,
             message: 'Users retrieved successfully.'
         );
+        } catch (\Exception $e) {
+            return $this->error(
+                message: "Somthing went wrong" . $e->getMessage(),
+            );
+        }
     }
 
     /**
@@ -73,12 +57,9 @@ class UserController extends Controller
             'password' => ['required', 'string', 'min:8'],
             'phone' => ['nullable', 'string', 'max:20'],
             'status' => ['nullable', 'string', 'max:50'],
-            'role' => ['nullable', 'string', Rule::exists('roles', 'name')->where('guard_name', config('permission.defaults.guard'))],
+            'role' => ['nullable', 'string', 'max:50'],
             'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ]);
-
-        $roleName = $validated['role'] ?? null;
-        unset($validated['role']);
 
         $validated['password'] = Hash::make($validated['password']);
 
@@ -89,8 +70,8 @@ class UserController extends Controller
 
         $user = User::create($validated);
 
-        if (!empty($roleName)) {
-            $user->assignRole($roleName);
+        if (!empty($validated['role'])) {
+            $user->assignRole($validated['role']);
         }
 
         return $this->success(
@@ -140,12 +121,9 @@ class UserController extends Controller
             'password' => ['nullable', 'string', 'min:8'],
             'phone' => ['nullable', 'string', 'max:20'],
             'status' => ['nullable', 'string', 'max:50'],
-            'role' => ['nullable', 'string', Rule::exists('roles', 'name')->where('guard_name', config('permission.defaults.guard'))],
+            'role' => ['nullable', 'string', 'max:50'],
             'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
         ]);
-
-        $roleName = $validated['role'] ?? null;
-        unset($validated['role']);
 
         if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
@@ -160,8 +138,8 @@ class UserController extends Controller
 
         $user->update($validated);
 
-        if (!empty($roleName)) {
-            $user->syncRoles([$roleName]);
+        if (!empty($validated['role'])) {
+            $user->syncRoles([$validated['role']]);
         }
 
         return $this->success(

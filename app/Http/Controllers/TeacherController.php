@@ -18,11 +18,7 @@ class TeacherController extends Controller
     {
         try {
             $teachers = User::role('teacher')
-                ->with([
-                    'taughtGroups' => fn($q) => $q
-                        ->with('center:id,name')
-                        ->withCount('students')
-                ])
+                ->with('taughtGroups.center')
                 ->withCount('taughtGroups')
                 ->paginate(15);
             return $this->success(
@@ -85,11 +81,7 @@ class TeacherController extends Controller
                 );
             }
 
-            $user->load([
-                'taughtGroups' => fn($q) => $q
-                    ->with('center:id,name')
-                    ->withCount('students'),
-            ]);
+            $user->load(['taughtGroups.center', 'taughtGroups.students']);
 
             return $this->success(
                 data: $user,
