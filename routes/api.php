@@ -102,6 +102,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Center groups
         Route::get('/groups', [CenterAdminController::class, 'groups']);
+        Route::delete('/groups/{group}', [GroupController::class, 'destroy']);
 
         // Create staff & students for this center
         Route::post('/teachers', [CenterAdminController::class, 'storeTeacher']);

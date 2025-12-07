@@ -16,11 +16,19 @@ use Carbon\Carbon;
 
 class GroupController extends Controller
 {
+    use \App\Traits\ApiResponse;
+
     public function index()
     {
         try {
-            $query = Group::with(['teacher', 'center', 'students', 'pendingStudents'])
-                ->withCount('students as students_count');
+            $query = Group::with(['teacher', 'center'])
+                ->withCount('lessons')
+                ->addSelect([
+                    'students_count' => \DB::table('group_students')
+                        ->selectRaw('count(*)')
+                        ->whereColumn('group_students.group_id', 'groups.id')
+                        ->where('group_students.status', 'approved')
+                ]);
 
             $user = User::findOrFail(Auth::id());
             if ($user?->hasRole('center_admin')) {
@@ -87,6 +95,10 @@ class GroupController extends Controller
                     $admin->notify(new NewGroupCreated($group, $teacher));
                 }
             });
+
+            $group->load(['teacher', 'center']);
+            $group->loadCount('lessons');
+
             return $this->success(
                 data: $group,
                 message: 'Group created successfully.'
@@ -102,10 +114,35 @@ class GroupController extends Controller
 
     public function show(Group $group)
     {
-        return $this->success(
-            data: $group,
-            message: 'Group retrieved successfully.'
-        );
+        try {
+            $group->load(['teacher', 'center']);
+
+            // Count lessons directly (simple hasMany)
+            $group->loadCount('lessons');
+
+            // Count students separately due to complex relationship constraints
+            $studentsCount = \DB::table('group_students')
+                ->where('group_id', $group->id)
+                ->where('status', 'approved')
+                ->count();
+
+            $group->setAttribute('students_count', $studentsCount);
+
+            return $this->success(
+                data: $group,
+                message: 'Group retrieved successfully.'
+            );
+        } catch (\Exception $e) {
+            \Log::error('Failed to retrieve group: ' . $e->getMessage(), [
+                'group_id' => $group->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return $this->error(
+                message: 'Failed to retrieve group.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null,
+            );
+        }
     }
 
     public function update(UpdateGroupRequest $request, Group $group)
@@ -126,7 +163,7 @@ class GroupController extends Controller
 
                 $sessionCount = (int) $sessionCount;
                 $scheduleDays = Arr::wrap($scheduleDays);
-                $scheduleTime = $data['schedule_time'] ?? null;
+                $scheduleTime = $data['schedule_time'] ?? $group->schedule_time;
 
                 if ($sessionCount > 0 && count($scheduleDays) > 0) {
                     $cursor = Carbon::now()->startOfDay();
@@ -145,35 +182,67 @@ class GroupController extends Controller
                 }
             }
 
+            // Reload the group with relationships
+            $group->refresh();
+            $group->load(['teacher', 'center']);
+            $group->loadCount('lessons');
+
+            // Count students separately due to complex relationship constraints
+            $studentsCount = \DB::table('group_students')
+                ->where('group_id', $group->id)
+                ->where('status', 'approved')
+                ->count();
+            $group->setAttribute('students_count', $studentsCount);
+
             return $this->success(
                 data: $group,
                 message: 'Group updated successfully.'
             );
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return $this->error(
+                message: 'You are not authorized to update this group.',
+                status: 403,
+            );
         } catch (\Exception $e) {
+            \Log::error('Failed to update group: ' . $e->getMessage(), [
+                'group_id' => $group->id,
+                'data' => $request->validated(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return $this->error(
                 message: 'Failed to update group.',
                 status: 500,
-                errors: $e->getMessage(),
+                errors: config('app.debug') ? $e->getMessage() : null,
             );
         }
     }
 
     public function destroy(Group $group)
     {
-        $this->authorize('delete', $group);
-
         try {
+            $this->authorize('delete', $group);
+
+            $groupName = $group->name;
             $group->delete();
 
             return $this->success(
-                message: 'Group deleted successfully.',
-                status: 204
+                message: "Group '{$groupName}' deleted successfully.",
+                status: 200
+            );
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return $this->error(
+                message: 'You are not authorized to delete this group.',
+                status: 403,
             );
         } catch (\Exception $e) {
+            \Log::error('Failed to delete group: ' . $e->getMessage(), [
+                'group_id' => $group->id,
+                'trace' => $e->getTraceAsString()
+            ]);
             return $this->error(
                 message: 'Failed to delete group.',
                 status: 500,
-                errors: $e->getMessage(),
+                errors: config('app.debug') ? $e->getMessage() : null,
             );
         }
     }

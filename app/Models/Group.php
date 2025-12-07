@@ -36,11 +36,7 @@ class Group extends Model
 
     public function teacher()
     {
-        return $this->belongsTo(User::class, 'teacher_id')
-            ->whereHas('roles', function ($query) {
-                $query->where('name', 'teacher')
-                    ->where('guard_name', config('permission.defaults.guard'));
-            });
+        return $this->belongsTo(User::class, 'teacher_id');
     }
 
     public function students()

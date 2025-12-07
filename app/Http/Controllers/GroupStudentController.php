@@ -57,16 +57,21 @@ class GroupStudentController extends Controller
             return $this->error('Unauthorized.', 403);
         }
 
-        $group->load([
-            'students' => fn($q) => $q->select('users.id', 'users.name', 'users.email', 'users.phone')
-                ->withPivot('status', 'joined_at', 'is_pay'),
-            'pendingStudents' => fn($q) => $q->select('users.id', 'users.name', 'users.email', 'users.phone')
-                ->withPivot('status', 'joined_at', 'is_pay'),
-        ]);
+        // Paginate approved students
+        $approved = $group->students()
+            ->select('users.id', 'users.name', 'users.email', 'users.phone')
+            ->withPivot('status', 'joined_at', 'is_pay')
+            ->paginate(20);
+
+        // Keep pending as collection (usually small number)
+        $pending = $group->pendingStudents()
+            ->select('users.id', 'users.name', 'users.email', 'users.phone')
+            ->withPivot('status', 'joined_at', 'is_pay')
+            ->get();
 
         return $this->success([
-            'approved' => $group->students,
-            'pending' => $group->pendingStudents,
+            'approved' => $approved,
+            'pending' => $pending,
         ], 'Group students retrieved successfully.');
     }
 

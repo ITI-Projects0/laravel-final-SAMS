@@ -14,12 +14,12 @@ class GroupPolicy
 
     public function view(User $user, Group $group): bool
     {
-        return $this->canManage($user, $group);
+        return true;
     }
 
     public function create(User $user): bool
     {
-        return $user->hasAnyRole(['admin', 'center_admin', 'teacher', 'assistant']);
+        return $user->hasAnyRole(['center_admin', 'teacher', 'assistant']);
     }
 
     public function update(User $user, Group $group): bool
@@ -44,11 +44,7 @@ class GroupPolicy
 
     protected function canManage(User $user, Group $group): bool
     {
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        if ($user->hasRole('center_admin')) {
+        if ($user->hasAnyRole(['center_admin', 'teacher', 'assistant'])) {
             $centerId = $user->center_id ?? $user->ownedCenter?->id;
             if ($centerId && $group->center_id === $centerId) {
                 return true;
