@@ -18,6 +18,9 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\TeacherStatsController;
 use App\Http\Controllers\Api\AiChatController;
 use App\Http\Controllers\Api\AiInsightsController;
+use App\Http\Controllers\Api\Ai\ParentAiController;
+use App\Http\Controllers\Api\Ai\StudentAiController;
+use App\Http\Controllers\Api\Ai\CenterAiController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -40,6 +43,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // AI helpers
     Route::post('/ai/chat', [AiChatController::class, 'chat']);
     Route::get('/ai/insights', [AiInsightsController::class, 'insights']);
+    Route::get('/ai/parent/weekly-summary', [ParentAiController::class, 'weeklySummary']);
+    Route::post('/ai/parent/explain', [ParentAiController::class, 'explain']);
+    Route::post('/ai/student/generate-quiz', [StudentAiController::class, 'generateQuiz']);
+    Route::post('/ai/student/summary', [StudentAiController::class, 'summary']);
+    Route::post('/ai/student/study-plan', [StudentAiController::class, 'studyPlan']);
+    Route::get('/ai/center/insights', [CenterAiController::class, 'insights']);
+    Route::get('/ai/center/attendance-forecast', [CenterAiController::class, 'attendanceForecast']);
 
     // Teacher/Center Admin Stats
     Route::get('/teacher/stats', [TeacherStatsController::class, 'stats'])
