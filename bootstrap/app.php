@@ -26,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // CORS for API and broadcasting
         $middleware->group('api', [
             \Illuminate\Http\Middleware\HandleCors::class,
+            \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ]);
 
         // Aliases

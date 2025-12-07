@@ -143,7 +143,7 @@ class TeacherManagementController extends Controller
             }
 
             // Send email with credentials
-            Mail::to($newUser->email)->send(new NewAccountMail($newUser, $password));
+            Mail::to($newUser->email)->send(new NewAccountMail($newUser, $password, config('app.frontend_url/login')));
 
             DB::commit();
 
