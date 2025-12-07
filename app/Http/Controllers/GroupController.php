@@ -21,6 +21,16 @@ class GroupController extends Controller
     public function index()
     {
         try {
+            $perPage = max(5, min(request()->integer('per_page', 15), 100));
+            $page = max(1, request()->integer('page', 1));
+            $search = request()->string('search')->toString();
+            $sortBy = request()->string('sort_by')->toString() ?: 'created_at';
+            $sortDir = strtolower(request()->string('sort_dir')->toString()) === 'asc' ? 'asc' : 'desc';
+            $allowedSorts = ['created_at', 'name', 'subject', 'students_count', 'lessons_count'];
+            if (!in_array($sortBy, $allowedSorts)) {
+                $sortBy = 'created_at';
+            }
+
             $query = Group::with(['teacher', 'center'])
                 ->withCount('lessons')
                 ->addSelect([
@@ -40,11 +50,35 @@ class GroupController extends Controller
                 $query->where('teacher_id', $user?->id);
             }
 
-            $groups = $query->paginate(15);
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('subject', 'like', "%{$search}%")
+                        ->orWhereHas('center', fn ($c) => $c->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('teacher', fn ($t) => $t->where('name', 'like', "%{$search}%"));
+                });
+            }
+
+            $groups = $query
+                ->orderBy($sortBy, $sortDir)
+                ->paginate($perPage, ['*'], 'page', $page);
 
             return $this->success(
                 data: $groups,
-                message: 'Groups retrieved successfully.'
+                message: 'Groups retrieved successfully.',
+                meta: [
+                    'pagination' => [
+                        'current_page' => $groups->currentPage(),
+                        'per_page' => $groups->perPage(),
+                        'total' => $groups->total(),
+                        'last_page' => $groups->lastPage(),
+                    ],
+                    'filters' => [
+                        'search' => $search,
+                        'sort_by' => $sortBy,
+                        'sort_dir' => $sortDir,
+                    ],
+                ]
             );
         } catch (\Exception $e) {
             return $this->error(
