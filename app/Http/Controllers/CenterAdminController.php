@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreCenterTeacherRequest;
 use App\Http\Resources\UserResource;
 use App\Models\Center;
 use App\Models\Group;
@@ -17,7 +18,7 @@ class CenterAdminController extends Controller
      */
     protected function center(): ?Center
     {
-        $user = Auth::user();
+        $user = User::find(Auth::id());
 
         if (!$user) {
             return null;
@@ -45,21 +46,60 @@ class CenterAdminController extends Controller
 
         $centerId = $center->id;
 
-        $teachers = User::role('teacher')
-            ->where('center_id', $centerId)
-            ->get(['id', 'name', 'email', 'phone', 'status']);
+        $pageSize = (int) request('per_page', 5);
+        $search = request('search');
 
-        $assistants = User::role('assistant')
-            ->where('center_id', $centerId)
-            ->get(['id', 'name', 'email', 'phone', 'status']);
+        $applySearch = function ($query) use ($search) {
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
+                });
+            }
+            return $query;
+        };
 
-        $students = User::role('student')
-            ->where('center_id', $centerId)
-            ->get(['id', 'name', 'email', 'phone', 'status']);
+        $format = function ($paginator) use ($search) {
+            return [
+                'data' => UserResource::collection($paginator->items()),
+                'meta' => [
+                    'current_page' => $paginator->currentPage(),
+                    'per_page' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                    'last_page' => $paginator->lastPage(),
+                    'search' => $search,
+                ],
+            ];
+        };
 
-        $parents = User::role('parent')
-            ->where('center_id', $centerId)
-            ->get(['id', 'name', 'email', 'phone', 'status']);
+        $teachers = $format(
+            $applySearch(User::role('teacher'))
+                ->where('center_id', $centerId)
+                ->orderBy('updated_at', 'desc')
+                ->paginate($pageSize, ['id', 'name', 'email', 'phone', 'status'])
+        );
+
+        $assistants = $format(
+            $applySearch(User::role('assistant'))
+                ->where('center_id', $centerId)
+                ->orderBy('updated_at', 'desc')
+                ->paginate($pageSize, ['id', 'name', 'email', 'phone', 'status'])
+        );
+
+        $students = $format(
+            $applySearch(User::role('student'))
+                ->where('center_id', $centerId)
+                ->orderBy('updated_at', 'desc')
+                ->paginate($pageSize, ['id', 'name', 'email', 'phone', 'status'])
+        );
+
+        $parents = $format(
+            $applySearch(User::role('parent'))
+                ->where('center_id', $centerId)
+                ->orderBy('updated_at', 'desc')
+                ->paginate($pageSize, ['id', 'name', 'email', 'phone', 'status'])
+        );
 
         return $this->success([
             'center' => [
@@ -67,10 +107,10 @@ class CenterAdminController extends Controller
                 'name' => $center->name,
                 'is_active' => $center->is_active,
             ],
-            'teachers' => UserResource::collection($teachers),
-            'assistants' => UserResource::collection($assistants),
-            'students' => UserResource::collection($students),
-            'parents' => UserResource::collection($parents),
+            'teachers' => $teachers,
+            'assistants' => $assistants,
+            'students' => $students,
+            'parents' => $parents,
         ], 'Center members retrieved successfully.');
     }
 
@@ -85,7 +125,9 @@ class CenterAdminController extends Controller
         }
 
         $groups = Group::with(['teacher:id,name,email'])
+        ->withCount('students')
             ->where('center_id', $center->id)
+            ->orderBy('updated_at', 'desc')
             ->paginate(15);
 
         return $this->success($groups, 'Center groups retrieved successfully.');
@@ -94,37 +136,40 @@ class CenterAdminController extends Controller
     /**
      * Create a new teacher assigned to this center.
      */
-    public function storeTeacher(Request $request)
+    public function storeTeacher(StoreCenterTeacherRequest $request)
     {
-        $center = $this->center();
-        if (!$center) {
-            return $this->error('Center not found for this admin.', 404);
+        try {
+            $center = $this->center();
+            if (!$center) {
+                return $this->error('Center not found for this admin.', 404);
+            }
+            $centerId = $center->id;
+
+            $validated = $request->validated();
+
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'phone' => $validated['phone'] ?? null,
+                'status' => 'active',
+                'center_id' => $centerId,
+            ]);
+            $user->assignRole('teacher');
+            $user->load('roles');
+
+            return $this->success(
+                new UserResource($user),
+                'Teacher created successfully.',
+                201
+            );
+        } catch (\Throwable $e) {
+            return $this->error(
+                message: 'Failed to create teacher.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null
+            );
         }
-        $centerId = $center->id;
-
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8'],
-            'phone' => ['nullable', 'string', 'max:20'],
-        ]);
-
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'phone' => $validated['phone'] ?? null,
-            'status' => 'active',
-            'center_id' => $centerId,
-        ]);
-        $user->assignRole('teacher');
-        $user->load('roles');
-
-        return $this->success(
-            new UserResource($user),
-            'Teacher created successfully.',
-            201
-        );
     }
 
     /**
@@ -204,35 +249,44 @@ class CenterAdminController extends Controller
      */
     public function destroyTeacher(User $user)
     {
-        $center = $this->center();
-        if (!$center) {
-            return $this->error('Center not found for this admin.', 404);
-        }
+        try {
+            $center = $this->center();
+            if (!$center) {
+                return $this->error('Center not found for this admin.', 404);
+            }
 
-        if (!$user->hasRole('teacher')) {
-            return $this->error('User is not a teacher.', 422);
-        }
+            if (!$user->hasRole('teacher')) {
+                return $this->error('User is not a teacher.', 422);
+            }
 
-        // Check if teacher has groups in this center
-        $hasGroupsInCenter = $user->taughtGroups()
-            ->where('center_id', $center->id)
-            ->exists();
+            // Ensure teacher belongs to this center
+            if ($user->center_id !== $center->id) {
+                return $this->error('Teacher does not belong to this center.', 403);
+            }
 
-        if ($hasGroupsInCenter) {
             // Remove teacher from all groups in this center
             $user->taughtGroups()
                 ->where('center_id', $center->id)
                 ->update(['teacher_id' => null]);
+
+            // Optionally drop the role if not teaching elsewhere
+            $stillTeachingElsewhere = $user->taughtGroups()->where('center_id', '<>', $center->id)->exists();
+            if (!$stillTeachingElsewhere) {
+                $user->removeRole('teacher');
+            }
+
+            return $this->success(
+                null,
+                'Teacher removed from center successfully.',
+                204
+            );
+        } catch (\Throwable $e) {
+            return $this->error(
+                message: 'Failed to remove teacher.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null
+            );
         }
-
-        // Optionally: remove role if not teaching anywhere else
-        // For now, we just remove from center groups
-
-        return $this->success(
-            null,
-            'Teacher removed from center successfully.',
-            204
-        );
     }
 
     /**
