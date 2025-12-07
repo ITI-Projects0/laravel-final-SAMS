@@ -8,6 +8,7 @@ use App\Models\Group;
 use App\Models\Lesson;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -65,7 +66,7 @@ class CenterAdminManagementController extends Controller
     public function getUsers(Request $request)
     {
         $center = $this->resolveCenter($request);
-        
+
         if (!$center) {
             return $this->error('Center not found for this admin', 404);
         }
@@ -191,19 +192,42 @@ class CenterAdminManagementController extends Controller
     /**
      * Delete user
      */
-    public function destroyUser(Request $request, User $user)
+    public function destroyUser(Request $request, $userId)
     {
-        $this->authorize('delete', $user);
+        try {
+            $user = User::find($userId);
+            if (!$user) {
+                return $this->error('User not found.', 404);
+            }
 
-        $center = $request->user()->ownedCenter;
-        $center = $center ?: $this->resolveCenter($request);
+            $center = User::find(Auth::id())->center;
 
-        if (!$center || $user->center_id !== $center->id) {
-            return $this->error('Unauthorized', 403);
+            // dd($center, $user->center_id, Auth::id());
+
+            if (!$center || $user->center_id !== $center->id) {
+                return $this->error('Unauthorized', 403);
+            }
+
+            // If teacher, detach from groups in this center and optionally drop role if unused elsewhere
+            if ($user->hasRole('teacher')) {
+                $user->taughtGroups()
+                    ->where('center_id', $center->id)
+                    ->update(['teacher_id' => null]);
+                $stillTeachingElsewhere = $user->taughtGroups()->where('center_id', '<>', $center->id)->exists();
+                if (!$stillTeachingElsewhere) {
+                    $user->removeRole('teacher');
+                }
+            }
+
+            $user->delete();
+
+            return $this->success(message:'User deleted successfully', status:204);
+        } catch (\Throwable $e) {
+            return $this->error(
+                message: 'Failed to delete user.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null
+            );
         }
-
-        $user->delete();
-
-        return $this->success(null, 'User deleted successfully', 204);
     }
 }
