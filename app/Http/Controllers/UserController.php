@@ -21,6 +21,14 @@ class UserController extends Controller
         // return all users as JSON
         try {
             $perPage = max(1, min(request()->integer('per_page', 20), 200));
+            $page = max(1, request()->integer('page', 1));
+            $search = request()->string('search')->toString();
+            $sortBy = request()->string('sort_by')->toString() ?: 'created_at';
+            $sortDir = strtolower(request()->string('sort_dir')->toString()) === 'asc' ? 'asc' : 'desc';
+            $allowedSorts = ['created_at', 'name', 'email', 'status', 'groups_count', 'children_count'];
+            if (!in_array($sortBy, $allowedSorts)) {
+                $sortBy = 'created_at';
+            }
 
             $query = User::query()->with(['roles:id,name', 'center:id,name']);
 
@@ -30,6 +38,14 @@ class UserController extends Controller
 
                 $query->whereHas('roles', function ($q) use ($role) {
                     $q->where('name', $role);
+                });
+            }
+
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
                 });
             }
 
@@ -50,10 +66,26 @@ class UserController extends Controller
                     ]);
             }
 
-            $users = $query->paginate($perPage);
+            $users = $query
+                ->orderBy($sortBy, $sortDir)
+                ->paginate($perPage, ['*'], 'page', $page);
             return $this->success(
                 data: $users,
-                message: 'Users retrieved successfully.'
+                message: 'Users retrieved successfully.',
+                meta: [
+                    'pagination' => [
+                        'current_page' => $users->currentPage(),
+                        'per_page' => $users->perPage(),
+                        'total' => $users->total(),
+                        'last_page' => $users->lastPage(),
+                    ],
+                    'filters' => [
+                        'search' => $search,
+                        'role' => $role,
+                        'sort_by' => $sortBy,
+                        'sort_dir' => $sortDir,
+                    ],
+                ]
             );
         } catch (\Exception $e) {
             return $this->error(

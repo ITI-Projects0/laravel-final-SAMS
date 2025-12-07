@@ -3,27 +3,86 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\User;
 use App\Http\Resources\TeacherResource;
-use Illuminate\Validation\Rule;
+use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class TeacherController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $teachers = User::role('teacher')
-                ->with('taughtGroups.center')
-                ->withCount('taughtGroups')
-                ->paginate(15);
+            $perPage = (int) $request->input('per_page', 15);
+            $perPage = min(max($perPage, 5), 100);
+            $search = $request->input('search');
+            $sortBy = $request->input('sort_by', 'created_at');
+            $sortDir = strtolower($request->input('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+            $allowedSorts = ['created_at', 'name', 'email', 'taught_groups_count', 'approved_students_count', 'pending_students_count'];
+            if (!in_array($sortBy, $allowedSorts)) {
+                $sortBy = 'created_at';
+            }
+
+            $teachersQuery = User::role('teacher')
+                ->with(['taughtGroups' => function ($query) {
+                    $query
+                        ->with(['center:id,name'])
+                        ->withCount([
+                            'students',
+                            'pendingStudents',
+                            'lessons',
+                            'attendances as attendance_today_count' => function ($q) {
+                                $q->whereDate('date', today());
+                            },
+                        ]);
+                }])
+                ->withCount([
+                    'taughtGroups',
+                    'taughtGroups as approved_students_count' => function ($q) {
+                        $q->join('group_students', 'group_students.group_id', '=', 'groups.id')
+                            ->where('group_students.status', 'approved')
+                            ->selectRaw('count(distinct group_students.student_id)');
+                    },
+                    'taughtGroups as pending_students_count' => function ($q) {
+                        $q->join('group_students', 'group_students.group_id', '=', 'groups.id')
+                            ->where('group_students.status', 'pending')
+                            ->selectRaw('count(distinct group_students.student_id)');
+                    },
+                ]);
+
+            if ($search) {
+                $teachersQuery->where(function ($query) use ($search) {
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
+                });
+            }
+
+            $teachers = $teachersQuery
+                ->orderBy($sortBy, $sortDir)
+                ->paginate($perPage);
+
             return $this->success(
-                data: $teachers,
-                message: 'Teachers retrieved successfully.'
+                data: TeacherResource::collection($teachers),
+                message: 'Teachers retrieved successfully.',
+                meta: [
+                    'pagination' => [
+                        'current_page' => $teachers->currentPage(),
+                        'per_page' => $teachers->perPage(),
+                        'total' => $teachers->total(),
+                        'last_page' => $teachers->lastPage(),
+                    ],
+                    'filters' => [
+                        'search' => $search,
+                        'sort_by' => $sortBy,
+                        'sort_dir' => $sortDir,
+                        'per_page' => $perPage,
+                    ],
+                ]
             );
         } catch (\Exception $e) {
             return $this->error(
@@ -46,7 +105,8 @@ class TeacherController extends Controller
                 'name' => ['required', 'string', 'max:255'],
                 'email' => ['required', 'email', 'max:255', 'unique:users,email'],
                 'password' => ['required', 'string', 'min:8'],
-                'phone' => ['nullable', 'string', 'max:20'],
+                'phone' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\\-()\\s]+$/', 'unique:users,phone'],
+                'status' => ['sometimes', 'in:active,inactive'],
             ]);
 
             $validated['password'] = Hash::make($validated['password']);
@@ -80,10 +140,36 @@ class TeacherController extends Controller
                 );
             }
 
-            $user->load(['taughtGroups.center', 'taughtGroups.students']);
+            $user->load([
+                'taughtGroups' => function ($query) {
+                    $query
+                        ->with(['center:id,name'])
+                        ->withCount([
+                            'students',
+                            'pendingStudents',
+                            'lessons',
+                            'attendances as attendance_today_count' => function ($q) {
+                                $q->whereDate('date', today());
+                            },
+                        ]);
+                },
+            ])
+                ->loadCount([
+                    'taughtGroups',
+                    'taughtGroups as approved_students_count' => function ($q) {
+                        $q->join('group_students', 'group_students.group_id', '=', 'groups.id')
+                            ->where('group_students.status', 'approved')
+                            ->selectRaw('count(distinct group_students.student_id)');
+                    },
+                    'taughtGroups as pending_students_count' => function ($q) {
+                        $q->join('group_students', 'group_students.group_id', '=', 'groups.id')
+                            ->where('group_students.status', 'pending')
+                            ->selectRaw('count(distinct group_students.student_id)');
+                    },
+                ]);
 
             return $this->success(
-                data: $user,
+                data: new TeacherResource($user),
                 message: 'Teacher retrieved successfully.'
             );
         } catch (\Exception $e) {
@@ -111,7 +197,8 @@ class TeacherController extends Controller
                     'max:255',
                     Rule::unique('users', 'email')->ignore($user->id),
                 ],
-                'phone' => ['nullable', 'string', 'max:20'],
+                'phone' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\\-()\\s]+$/', Rule::unique('users', 'phone')->ignore($user->id)],
+                'status' => ['sometimes', 'in:active,inactive'],
             ]);
 
             $user->update($validated);

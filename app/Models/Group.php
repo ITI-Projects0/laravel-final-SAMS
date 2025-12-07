@@ -70,4 +70,9 @@ class Group extends Model
     {
         return $this->hasMany(Lesson::class);
     }
+
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
 }

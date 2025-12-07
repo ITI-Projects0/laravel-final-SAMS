@@ -26,7 +26,9 @@ class GroupResource extends JsonResource
             'teacher' => new UserResource($this->whenLoaded('teacher')),
             'center' => new CenterResource($this->whenLoaded('center')),
             'students_count' => $this->whenCounted('students'),
+            'pending_students_count' => $this->whenCounted('pendingStudents'),
             'lessons_count' => $this->whenCounted('lessons'),
+            'attendance_today_count' => $this->when(isset($this->attendance_today_count), (int) $this->attendance_today_count),
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
             'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];

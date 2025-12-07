@@ -16,6 +16,8 @@ use App\Http\Controllers\LessonController;
 use App\Http\Controllers\GroupStudentController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\TeacherStatsController;
+use App\Http\Controllers\Api\AiChatController;
+use App\Http\Controllers\Api\AiInsightsController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -35,6 +37,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::put('/me', [AuthController::class, 'updateProfile']);
     Route::put('/me/password', [AuthController::class, 'updatePassword']);
+    // AI helpers
+    Route::post('/ai/chat', [AiChatController::class, 'chat']);
+    Route::get('/ai/insights', [AiInsightsController::class, 'insights']);
 
     // Teacher/Center Admin Stats
     Route::get('/teacher/stats', [TeacherStatsController::class, 'stats'])
@@ -115,7 +120,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/students/{user}', [CenterAdminController::class, 'destroyStudent']);
     });
 
-  Route::prefix('notifications')->group(function () {
+    Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
         Route::get('/latest', [NotificationController::class, 'latest']);
         Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
