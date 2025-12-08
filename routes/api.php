@@ -21,6 +21,16 @@ use App\Http\Controllers\Api\AiInsightsController;
 use App\Http\Controllers\Api\Ai\ParentAiController;
 use App\Http\Controllers\Api\Ai\StudentAiController;
 use App\Http\Controllers\Api\Ai\CenterAiController;
+use App\Http\Controllers\ContactController;
+
+// Public contact route (no auth required)
+Route::post('/contact', [ContactController::class, 'store']);
+
+// Admin contacts route (requires auth + admin role)
+// Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+//     Route::get('/admin/contacts', [ContactController::class, 'index']);
+// });
+Route::get('/admin/contacts', [ContactController::class, 'index']);
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
