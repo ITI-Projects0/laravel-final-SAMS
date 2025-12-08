@@ -107,4 +107,30 @@ class AssessmentController extends Controller
             'data' => $result
         ]);
     }
+    public function update(UpdateAssessmentRequest $request, Assessment $assessment)
+    {
+        $data = $request->validated();
+
+        if (!isset($data['max_score'])) {
+            $data['max_score'] = $assessment->max_score;
+        }
+
+        $assessment->update($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Assessment updated successfully.',
+            'data' => $assessment
+        ]);
+    }
+
+    public function destroy(Assessment $assessment)
+    {
+        $assessment->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Assessment deleted successfully.'
+        ]);
+    }
 }

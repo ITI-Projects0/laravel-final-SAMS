@@ -30,12 +30,14 @@ class AuthController extends Controller
 
             $activationCode = (string) Str::uuid();
 
+            // New center admins start with pending approval status
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
                 'activation_code' => $activationCode,
                 'status' => 'active',
+                'approval_status' => 'pending', // Requires admin approval
             ]);
 
             $guard = config('permission.defaults.guard', 'api');
@@ -53,7 +55,7 @@ class AuthController extends Controller
                 'primary_color' => '#2d3250',
                 'secondary_color' => '#424769',
                 'subdomain' => Str::slug($user->name) . '-' . $user->id,
-                'is_active' => true,
+                'is_active' => false, // Center inactive until approved
             ]);
 
             $user->center()->associate($center);
@@ -63,20 +65,27 @@ class AuthController extends Controller
             // Send Activation Code
             Mail::to($user->email)->queue(new ActivationCodeMail($user, $activationCode));
 
+            // Notify all admins about new registration
+            $admins = User::role('admin')->get();
+            foreach ($admins as $admin) {
+                $admin->notify(new \App\Notifications\NewCenterAdminRegistration($user));
+            }
+
             $token = $user->createToken('sams-app')->plainTextToken;
 
             DB::commit();
 
             return $this->success([
                 'user' => array_merge(
-                    $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id']),
+                    $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id', 'approval_status']),
                     [
                         'roles' => $user->getRoleNames(),
                         'role' => $user->getRoleNames()->first(),
                     ]
                 ),
                 'token' => $token,
-            ], 'Registration successful. Please check your email for the activation code.', 201);
+                'requires_approval' => true,
+            ], 'Registration successful. Your account is pending admin approval.', 201);
         } catch(\Exception $e) {
             DB::rollBack();
             return $this->error(
@@ -136,8 +145,10 @@ class AuthController extends Controller
         }
 
         $user = User::where('email', $googleUser->getEmail())->first();
+        $isNewUser = false;
 
         if (!$user) {
+            $isNewUser = true;
             $user = User::create([
                 'name' => $googleUser->getName(),
                 'email' => $googleUser->getEmail(),
@@ -145,25 +156,51 @@ class AuthController extends Controller
                 'google_id' => $googleUser->getId(),
                 'email_verified_at' => now(),
                 'status' => 'active',
+                'approval_status' => 'pending', // New Google users need approval
             ]);
+
+            // Create center for new user
+            $center = Center::create([
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'logo_url' => null,
+                'primary_color' => '#2d3250',
+                'secondary_color' => '#424769',
+                'subdomain' => Str::slug($user->name) . '-' . $user->id,
+                'is_active' => false, // Center inactive until approved
+            ]);
+
+            $user->center_id = $center->id;
+            $user->save();
+
+            // Sync roles with correct guard
+            $user->syncRoles($roleNames);
+
+            // Notify all admins about new registration
+            $admins = User::role('admin')->get();
+            foreach ($admins as $admin) {
+                $admin->notify(new \App\Notifications\NewCenterAdminRegistration($user));
+            }
         } else {
             // Update google_id if not set
             if (!$user->google_id) {
                 $user->google_id = $googleUser->getId();
                 $user->save();
             }
+            // Ensure roles are synced for existing users
+            $user->syncRoles($roleNames);
         }
-
-        // Sync roles with correct guard
-        $user->syncRoles($roleNames);
 
         // Generate a short-lived exchange token
         $exchangeToken = Str::random(40);
         Cache::put('auth_exchange_' . $exchangeToken, $user->id, 60); // Valid for 60 seconds
 
-        // Redirect to frontend with exchange token
+        // Redirect to frontend with exchange token (and pending flag for new users)
         $frontendUrl = config('app.frontend_url', 'http://localhost:35045');
-        $queryParams = http_build_query(['exchange_token' => $exchangeToken]);
+        $queryParams = http_build_query([
+            'exchange_token' => $exchangeToken,
+            'pending' => $isNewUser ? '1' : '0',
+        ]);
         return redirect()->to("{$frontendUrl}/login?{$queryParams}");
     }
 
@@ -208,14 +245,35 @@ class AuthController extends Controller
             return response()->json(['message' => 'Account is not active.'], 403);
         }
 
+        // Check approval status for center_admin users
+        if ($user->hasRole('center_admin')) {
+            if ($user->approval_status === 'rejected') {
+                return response()->json([
+                    'message' => 'Your registration has been rejected.',
+                    'approval_status' => 'rejected',
+                ], 403);
+            }
 
+            if ($user->approval_status === 'pending') {
+                $token = $user->createToken('sams-app')->plainTextToken;
+                return response()->json([
+                    'message' => 'Your account is pending admin approval.',
+                    'approval_status' => 'pending',
+                    'user' => array_merge(
+                        $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id', 'approval_status']),
+                        ['roles' => $user->getRoleNames()]
+                    ),
+                    'token' => $token,
+                ]);
+            }
+        }
 
         $token = $user->createToken('sams-app')->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful.',
             'user' => array_merge(
-                $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id']),
+                $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id', 'approval_status']),
                 ['roles' => $user->getRoleNames()]
             ),
             'token' => $token,
@@ -233,7 +291,7 @@ class AuthController extends Controller
     {
         $user = User::findOrFail(Auth::id());
         return $this->success(array_merge(
-            $user->only(['id', 'name', 'email', 'phone', 'status', 'avatar', 'center_id']),
+            $user->only(['id', 'name', 'email', 'phone', 'status', 'avatar', 'center_id', 'approval_status']),
             ['roles' => $user->getRoleNames()]
         ));
     }
@@ -321,14 +379,22 @@ class AuthController extends Controller
             'code' => ['required', 'string'],
         ]);
 
-        // Find a matching record where the hashed token matches the provided code
-        $record = DB::table('password_reset_tokens')->where('created_at', '>=', now()->subMinutes(30))->first();
-        if (!$record || !Hash::check($request->code, $record->token)) {
+        $records = DB::table('password_reset_tokens')
+            ->where('created_at', '>=', now()->subMinutes(30))
+            ->get();
+
+        $record = $records->first(function ($entry) use ($request) {
+            return Hash::check($request->code, $entry->token);
+        });
+
+        if (!$record) {
             return response()->json(['message' => 'Invalid or expired reset code.'], 400);
         }
 
-        // Return the plain code as a token that can be used in resetPassword
-        return response()->json(['data' => ['token' => $request->code]]);
+        return response()->json(['data' => [
+            'token' => $request->code,
+            'email' => $record->email,
+        ]]);
     }
 
     public function resetPassword(Request $request)

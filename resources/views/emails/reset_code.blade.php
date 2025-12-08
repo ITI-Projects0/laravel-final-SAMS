@@ -20,7 +20,7 @@
                                 We received a request to reset the password for {{ $email }}. Click the button below to choose
                                 a new one.
                             </p>
-                            <a href="{{ config('app.frontend_url') }}/reset-password?token={{ urlencode($token) }}&email={{ urlencode($email) }}"
+                            <a href="{{ config('app.frontend_url') }}/reset-password?code={{ urlencode($token) }}"
                                 style="display:inline-block;padding:14px 32px;background:#38bdf8;color:#0f172a;text-decoration:none;border-radius:16px;font-weight:600;box-shadow:0 15px 30px rgba(56,189,248,0.35);">
                                 Create a new password
                             </a>

@@ -25,6 +25,7 @@ class User extends Authenticatable
         'password',
         'phone',
         'status',
+        'approval_status',
         'activation_code',
         'google_id',
         'center_id',
@@ -46,6 +47,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'status' => 'string',
+        'approval_status' => 'string',
     ];
 
     public function isAdmin(): bool
@@ -81,6 +83,21 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    public function isPending(): bool
+    {
+        return $this->approval_status === 'pending';
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->approval_status === 'approved';
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->approval_status === 'rejected';
     }
 
     public function taughtGroups()

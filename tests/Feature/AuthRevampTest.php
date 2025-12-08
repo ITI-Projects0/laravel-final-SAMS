@@ -80,10 +80,12 @@ class AuthRevampTest extends TestCase
         $validateResponse->assertOk();
         $data = $validateResponse->json('data');
         $this->assertArrayHasKey('token', $data);
+        $this->assertArrayHasKey('email', $data);
+        $this->assertEquals($user->email, $data['email']);
         $resetToken = $data['token'];
 
         $this->postJson('/api/auth/reset-password', [
-            'email' => $user->email,
+            'email' => $data['email'],
             'token' => $resetToken,
             'password' => 'N3wpass!1',
             'password_confirmation' => 'N3wpass!1',

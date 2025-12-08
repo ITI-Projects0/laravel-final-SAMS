@@ -18,7 +18,23 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\TeacherStatsController;
 use App\Http\Controllers\Api\AiChatController;
 use App\Http\Controllers\Api\AiInsightsController;
-use App\Http\Controllers\ParentDashboardController;
+use App\Http\Controllers\Api\Ai\ParentAiController;
+use App\Http\Controllers\Api\Ai\StudentAiController;
+use App\Http\Controllers\Api\Ai\CenterAiController;
+use App\Http\Controllers\ContactController;
+
+// Public contact route (no auth required)
+Route::post('/contact', [ContactController::class, 'store']);
+
+// Admin contacts route (requires auth + admin role)
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    Route::get('/admin/contacts', [ContactController::class, 'index']);
+
+    // Center Admin Approval Management
+    Route::get('/admin/pending-centers', [App\Http\Controllers\AdminCenterApprovalController::class, 'index']);
+    Route::post('/admin/centers/{user}/approve', [App\Http\Controllers\AdminCenterApprovalController::class, 'approve']);
+    Route::post('/admin/centers/{user}/reject', [App\Http\Controllers\AdminCenterApprovalController::class, 'reject']);
+});
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -41,6 +57,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // AI helpers
     Route::post('/ai/chat', [AiChatController::class, 'chat']);
     Route::get('/ai/insights', [AiInsightsController::class, 'insights']);
+    Route::get('/ai/parent/weekly-summary', [ParentAiController::class, 'weeklySummary']);
+    Route::post('/ai/parent/explain', [ParentAiController::class, 'explain']);
+    Route::post('/ai/student/generate-quiz', [StudentAiController::class, 'generateQuiz']);
+    Route::post('/ai/student/summary', [StudentAiController::class, 'summary']);
+    Route::post('/ai/student/study-plan', [StudentAiController::class, 'studyPlan']);
+    Route::get('/ai/center/insights', [CenterAiController::class, 'insights']);
+    Route::get('/ai/center/attendance-forecast', [CenterAiController::class, 'attendanceForecast']);
 
     // Teacher/Center Admin Stats
     Route::get('/teacher/stats', [TeacherStatsController::class, 'stats'])
@@ -65,19 +88,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('groups', 'studentGroups');
         Route::get('groups/{group}', 'groupOverview');
         Route::get('assessments', 'studentAssignments');
-        Route::get('attendance', 'studentAttendance');
-    });
-
-    // Parent dashboard
-    Route::middleware('role:parent')->controller(ParentDashboardController::class)->prefix('dashboard/parent/')->group(function () {
-        Route::get('overview', 'overview');
-        Route::get('children', 'children');
-        Route::get('children/{child}', 'childShow');
-        Route::get('children/{child}/summary', 'childWeeklySummary');
-        Route::get('upcoming-classes', 'upcomingClasses');
-        Route::get('attendance', 'attendance');
-        Route::get('notifications', 'notifications');
-        Route::get('summary', 'summary');
     });
 
     // adding or removing roles from user
@@ -93,6 +103,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/lessons/{lesson}', [LessonController::class, 'destroy']);
     Route::post('/lessons/{lesson}/assessments', [App\Http\Controllers\AssessmentController::class, 'store']);
     Route::get('/assessments/{assessment}', [App\Http\Controllers\AssessmentController::class, 'show']);
+    Route::put('/assessments/{assessment}', [App\Http\Controllers\AssessmentController::class, 'update']);
+    Route::delete('/assessments/{assessment}', [App\Http\Controllers\AssessmentController::class, 'destroy']);
     Route::post('/assessments/{assessment}/results', [App\Http\Controllers\AssessmentController::class, 'storeResult']);
 
     // Group students management (teachers/assistants/center_admin/admin)
