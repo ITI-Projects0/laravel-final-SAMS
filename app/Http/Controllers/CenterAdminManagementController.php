@@ -180,12 +180,12 @@ class CenterAdminManagementController extends Controller
             'role' => 'required|in:teacher,student,assistant,parent',
             'group_id' => 'required_if:role,student|exists:groups,id',
             'student_id' => [
-                Rule::requiredIf(fn () => $request->input('role') === 'parent' && !$request->filled('student_ids')),
+                Rule::requiredIf(fn() => $request->input('role') === 'parent' && !$request->filled('student_ids')),
                 'nullable',
                 'exists:users,id',
             ],
             'student_ids' => [
-                Rule::requiredIf(fn () => $request->input('role') === 'parent' && !$request->filled('student_id')),
+                Rule::requiredIf(fn() => $request->input('role') === 'parent' && !$request->filled('student_id')),
                 'array',
                 'min:1',
             ],
@@ -340,27 +340,15 @@ class CenterAdminManagementController extends Controller
             if (!$user) {
                 return $this->error('User not found.', 404);
             }
+            $authUser = User::findOrFail(Auth::id());
+            $center = $authUser->ownedCenter;
 
-            $center = User::find(Auth::id())->center;
-
-            if (!$center || $user->center_id !== $center->id) {
+            if (!$center || $authUser->center_id !== $user->center_id) {
                 return $this->error('Unauthorized', 403);
             }
 
-            // If teacher, detach from groups in this center and optionally drop role if unused elsewhere
-            if ($user->hasRole('teacher')) {
-                $user->taughtGroups()
-                    ->where('center_id', $center->id)
-                    ->update(['teacher_id' => null]);
-                $stillTeachingElsewhere = $user->taughtGroups()->where('center_id', '<>', $center->id)->exists();
-                if (!$stillTeachingElsewhere) {
-                    $user->removeRole('teacher');
-                }
-            }
-
             $user->delete();
-
-            return $this->success(message:'User deleted successfully', status:204);
+            return $this->success(null, 'User deleted successfully.', 200);
         } catch (\Throwable $e) {
             return $this->error(
                 message: 'Failed to delete user.',

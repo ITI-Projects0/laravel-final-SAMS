@@ -71,19 +71,14 @@ class AuthController extends Controller
                 $admin->notify(new \App\Notifications\NewCenterAdminRegistration($user));
             }
 
-            $token = $user->createToken('sams-app')->plainTextToken;
+            Auth::login($user);
+            $request->session()->regenerate();
 
             DB::commit();
 
             return $this->success([
-                'user' => array_merge(
-                    $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id', 'approval_status']),
-                    [
-                        'roles' => $user->getRoleNames(),
-                        'role' => $user->getRoleNames()->first(),
-                    ]
-                ),
-                'token' => $token,
+                'user' => $this->userPayload($user),
+                'token' => $this->maybeIssueToken($user, $request),
                 'requires_approval' => true,
             ], 'Registration successful. Your account is pending admin approval.', 201);
         } catch(\Exception $e) {
@@ -219,15 +214,13 @@ class AuthController extends Controller
             return response()->json(['message' => 'User not found.'], 404);
         }
 
-        $token = $user->createToken('sams-app')->plainTextToken;
+        Auth::login($user);
+        $request->session()->regenerate();
 
         return response()->json([
             'message' => 'Login successful.',
-            'user' => array_merge(
-                $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id']),
-                ['roles' => $user->getRoleNames()]
-            ),
-            'token' => $token,
+            'user' => $this->userPayload($user),
+            'token' => $this->maybeIssueToken($user, $request),
         ]);
     }
 
@@ -255,35 +248,36 @@ class AuthController extends Controller
             }
 
             if ($user->approval_status === 'pending') {
-                $token = $user->createToken('sams-app')->plainTextToken;
+                $request->session()->regenerate();
                 return response()->json([
                     'message' => 'Your account is pending admin approval.',
                     'approval_status' => 'pending',
-                    'user' => array_merge(
-                        $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id', 'approval_status']),
-                        ['roles' => $user->getRoleNames()]
-                    ),
-                    'token' => $token,
+                    'user' => $this->userPayload($user),
+                    'token' => $this->maybeIssueToken($user, $request),
                 ]);
             }
         }
 
-        $token = $user->createToken('sams-app')->plainTextToken;
+        $request->session()->regenerate();
 
         return response()->json([
             'message' => 'Login successful.',
-            'user' => array_merge(
-                $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id', 'approval_status']),
-                ['roles' => $user->getRoleNames()]
-            ),
-            'token' => $token,
+            'user' => $this->userPayload($user),
+            'token' => $this->maybeIssueToken($user, $request),
         ]);
     }
 
     public function logout(Request $request)
     {
         // Revoke the token that was used to authenticate the current request
-        $request->user()->currentAccessToken()->delete();
+        $token = $request->user()->currentAccessToken();
+        if ($token) {
+            $token->delete();
+        } else {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return response()->json(['message' => 'Logout successful.']);
     }
@@ -430,5 +424,30 @@ class AuthController extends Controller
         DB::table('password_reset_tokens')->where('email', $request->email)->delete();
 
         return response()->json(['message' => 'Password reset successfully.']);
+    }
+
+    /**
+     * Build a consistent user payload for auth responses.
+     */
+    private function userPayload(User $user): array
+    {
+        return array_merge(
+            $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id', 'approval_status']),
+            [
+                'roles' => $user->getRoleNames(),
+                'role' => $user->getRoleNames()->first(),
+            ]
+        );
+    }
+
+    /**
+     * Optionally issue a personal access token for non-SPA clients.
+     * SPA (Angular) should omit include_token and rely on HttpOnly session cookie.
+     */
+    private function maybeIssueToken(User $user, Request $request): ?string
+    {
+        return $request->boolean('include_token', false)
+            ? $user->createToken('sams-app')->plainTextToken
+            : null;
     }
 }

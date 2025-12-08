@@ -15,13 +15,30 @@
       "key": "token",
       "value": "",
       "type": "string",
-      "description": "Sanctum token returned from /api/auth/login or /api/auth/register."
+      "description": "Optional Sanctum token returned when include_token=true (otherwise use HttpOnly session cookie)."
     }
   ],
   "item": [
     {
       "name": "Auth (Public)",
       "item": [
+        {
+          "name": "CSRF Cookie (for SPA/session)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/sanctum/csrf-cookie",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "sanctum",
+                "csrf-cookie"
+              ]
+            },
+            "description": "Initialize CSRF + session cookies before cookie-based login."
+          }
+        },
         {
           "name": "Register",
           "request": {
@@ -44,10 +61,10 @@
                 "register"
               ]
             },
-            "description": "Create a new center admin + teacher account.",
+            "description": "Create a new center admin + teacher account. Set include_token=true only if you want a bearer token (Postman).",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Center Owner\",\n  \"email\": \"owner@example.com\",\n  \"phone\": \"01234567890\",\n  \"password\": \"Password1!\",\n  \"password_confirmation\": \"Password1!\",\n  \"center_name\": \"My Center\"\n}",
+              "raw": "{\n  \"name\": \"Center Owner\",\n  \"email\": \"owner@example.com\",\n  \"phone\": \"01234567890\",\n  \"password\": \"Password1!\",\n  \"password_confirmation\": \"Password1!\",\n  \"center_name\": \"My Center\",\n  \"include_token\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -78,10 +95,10 @@
                 "login"
               ]
             },
-            "description": "Email/password login.",
+            "description": "Email/password login. Set include_token=true for Postman bearer token; omit to rely on session cookie for SPA.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"owner@example.com\",\n  \"password\": \"Password1!\"\n}",
+              "raw": "{\n  \"email\": \"owner@example.com\",\n  \"password\": \"Password1!\",\n  \"include_token\": true\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -287,7 +304,7 @@
                 "logout"
               ]
             },
-            "description": "Invalidate current token."
+            "description": "Invalidate current token or session (if logged in with cookies)."
           }
         },
         {

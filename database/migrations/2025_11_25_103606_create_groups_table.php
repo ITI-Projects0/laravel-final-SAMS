@@ -19,9 +19,7 @@ return new class extends Migration
             $table->foreignIdFor(User::class,'teacher_id')->constrained()->cascadeOnDelete();
             $table->string('name');
             $table->text('description')->nullable();
-            // $table->string('join_code')->nullable();
             $table->string('subject');
-            // $table->boolean('is_approval_required')->default(false);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });

@@ -70,12 +70,12 @@ class DatabaseSeeder extends Seeder
         $roleParent->givePermissionTo(['view student performance']);
 
         // ---------- FIXED USERS ----------
-        $admin = User::factory()->create([
-            'name' => 'SAMS Super Admin',
-            'email' => 'ahmed.alla56756@gmail.com',
-            'status' => 'active',
-        ]);
-        $admin->assignRole($roleAdmin);
+        // $admin = User::factory()->create([
+        //     'name' => 'SAMS Super Admin',
+        //     'email' => 'ahmed.alla56756@gmail.com',
+        //     'status' => 'active',
+        // ]);
+        // $admin->assignRole($roleAdmin);
 
         $studentUser = User::factory()->create([
             'name' => 'Student User',
