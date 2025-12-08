@@ -18,15 +18,19 @@ return Application::configure(basePath: dirname(__DIR__))
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
 
-        // Disable CSRF for SPA
-        $middleware->validateCsrfTokens(except: [
-            '*',
-        ]);
-
         // CORS for API and broadcasting
         $middleware->group('api', [
+            \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Session\Middleware\StartSession::class,
+            \Laravel\Sanctum\Http\Middleware\AuthenticateSession::class,
             \Illuminate\Http\Middleware\HandleCors::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+        ]);
+
+        // Disable CSRF for SPA (we rely on Sanctum's stateful cookie)
+        $middleware->validateCsrfTokens(except: [
+            '*',
         ]);
 
         // Aliases
