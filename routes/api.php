@@ -18,6 +18,7 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\TeacherStatsController;
 use App\Http\Controllers\Api\AiChatController;
 use App\Http\Controllers\Api\AiInsightsController;
+use App\Http\Controllers\ParentDashboardController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -65,6 +66,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('groups/{group}', 'groupOverview');
         Route::get('assessments', 'studentAssignments');
         Route::get('attendance', 'studentAttendance');
+    });
+
+    // Parent dashboard
+    Route::middleware('role:parent')->controller(ParentDashboardController::class)->prefix('dashboard/parent/')->group(function () {
+        Route::get('overview', 'overview');
+        Route::get('children', 'children');
+        Route::get('children/{child}', 'childShow');
+        Route::get('children/{child}/summary', 'childWeeklySummary');
+        Route::get('upcoming-classes', 'upcomingClasses');
+        Route::get('attendance', 'attendance');
+        Route::get('notifications', 'notifications');
+        Route::get('summary', 'summary');
     });
 
     // adding or removing roles from user

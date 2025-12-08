@@ -1886,6 +1886,291 @@
             },
             "description": "Assignments & scores."
           }
+        },
+        {
+          "name": "Parent Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/parent/overview",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "parent",
+                "overview"
+              ]
+            },
+            "description": "Parent overview: children count, unread notifications, upcoming classes (48h preview), recent notifications."
+          }
+        },
+        {
+          "name": "Parent Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/parent/summary",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "parent",
+                "summary"
+              ]
+            },
+            "description": "Aggregated snapshot: children total, average attendance, active classes, pending assignments, upcoming classes."
+          }
+        },
+        {
+          "name": "Parent Children",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/parent/children?per_page=10&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "parent",
+                "children"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Default 10"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Paginated list of linked students (default 10 per page)."
+          }
+        },
+        {
+          "name": "Parent Child Detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/parent/children/{{child_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "parent",
+                "children",
+                "{{child_id}}"
+              ]
+            },
+            "description": "Detailed dashboard for a linked student (attendance, classes, assignments, recent grades)."
+          }
+        },
+        {
+          "name": "Parent Child Weekly Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/parent/children/{{child_id}}/summary",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "parent",
+                "children",
+                "{{child_id}}",
+                "summary"
+              ]
+            },
+            "description": "Weekly summary (last 7 days) without AI: attendance rate, missed days, avg grade, recent grades."
+          }
+        },
+        {
+          "name": "Parent Upcoming Classes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/parent/upcoming-classes?hours=48&child_id=&per_page=10&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "parent",
+                "upcoming-classes"
+              ],
+              "query": [
+                {
+                  "key": "hours",
+                  "value": "48",
+                  "description": "Window in hours (default 48, max 168)"
+                },
+                {
+                  "key": "child_id",
+                  "value": "",
+                  "description": "Optional filter to a specific child"
+                },
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Default 10"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Upcoming classes for linked students within next hours window."
+          }
+        },
+        {
+          "name": "Parent Attendance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/parent/attendance?child_id=&status=&date=&subject=&per_page=10&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "parent",
+                "attendance"
+              ],
+              "query": [
+                {
+                  "key": "child_id",
+                  "value": "",
+                  "description": "Optional filter to a specific child"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "present|absent|late|excused"
+                },
+                {
+                  "key": "date",
+                  "value": "",
+                  "description": "YYYY-MM-DD"
+                },
+                {
+                  "key": "subject",
+                  "value": "",
+                  "description": "Partial match"
+                },
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Default 10"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Attendance history for linked students with filters."
+          }
+        },
+        {
+          "name": "Parent Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/parent/notifications?per_page=10&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "dashboard",
+                "parent",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Default 10"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Paginated notifications for parent account."
+          }
         }
       ]
     },
