@@ -8,6 +8,7 @@ use App\Models\Attendance;
 use App\Models\Group;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends Controller
 {
@@ -40,7 +41,7 @@ class AttendanceController extends Controller
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->error('Group not found.', 404);
         } catch (\Throwable $e) {
-            \Log::error('Attendance index error: ' . $e->getMessage());
+            Log::error('Attendance index error: ' . $e->getMessage());
             return $this->error(
                 message: 'Failed to retrieve attendance records.',
                 status: 500,
@@ -94,7 +95,7 @@ class AttendanceController extends Controller
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return $this->error('Group not found.', 404);
         } catch (\Exception $e) {
-            \Log::error('Failed to save attendance: ' . $e->getMessage(), [
+            Log::error('Failed to save attendance: ' . $e->getMessage(), [
                 'group_id' => $groupId,
                 'user_id' => Auth::id(),
                 'trace' => $e->getTraceAsString()
