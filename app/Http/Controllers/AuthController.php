@@ -14,6 +14,7 @@ use Laravel\Socialite\Facades\Socialite;
 use App\Mail\ActivationCodeMail;
 use App\Mail\ResetCodeMail;
 use App\Models\Center;
+use App\Notifications\NewCenterAdminRegistration;
 use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -125,80 +126,78 @@ class AuthController extends Controller
     }
 
     public function googleCallback()
-    {
-        $guard = config('permission.defaults.guard', 'api');
-        $roleNames = ['center_admin', 'teacher'];
+{
+    $guard = config('permission.defaults.guard', 'api');
+    $roleNames = ['center_admin', 'teacher'];
 
-        try {
-            $googleUser = Socialite::driver('google')->user();
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Google login failed.'], 400);
-        }
-
-        // Ensure roles exist for this guard to prevent guard mismatch errors
-        foreach ($roleNames as $roleName) {
-            Role::firstOrCreate(['name' => $roleName, 'guard_name' => $guard]);
-        }
-
-        $user = User::where('email', $googleUser->getEmail())->first();
-        $isNewUser = false;
-
-        if (!$user) {
-            $isNewUser = true;
-            $user = User::create([
-                'name' => $googleUser->getName(),
-                'email' => $googleUser->getEmail(),
-                'password' => Hash::make(Str::random(16)), // Random password
-                'google_id' => $googleUser->getId(),
-                'email_verified_at' => now(),
-                'status' => 'active',
-                'approval_status' => 'pending', // New Google users need approval
-            ]);
-
-            // Create center for new user
-            $center = Center::create([
-                'user_id' => $user->id,
-                'name' => $user->name,
-                'logo_url' => null,
-                'primary_color' => '#2d3250',
-                'secondary_color' => '#424769',
-                'subdomain' => Str::slug($user->name) . '-' . $user->id,
-                'is_active' => false, // Center inactive until approved
-            ]);
-
-            $user->center_id = $center->id;
-            $user->save();
-
-            // Sync roles with correct guard
-            $user->syncRoles($roleNames);
-
-            // Notify all admins about new registration
-            $admins = User::role('admin')->get();
-            foreach ($admins as $admin) {
-                $admin->notify(new \App\Notifications\NewCenterAdminRegistration($user));
-            }
-        } else {
-            // Update google_id if not set
-            if (!$user->google_id) {
-                $user->google_id = $googleUser->getId();
-                $user->save();
-            }
-            // Ensure roles are synced for existing users
-            $user->syncRoles($roleNames);
-        }
-
-        // Generate a short-lived exchange token
-        $exchangeToken = Str::random(40);
-        Cache::put('auth_exchange_' . $exchangeToken, $user->id, 60); // Valid for 60 seconds
-
-        // Redirect to frontend with exchange token (and pending flag for new users)
-        $frontendUrl = config('app.frontend_url', 'http://localhost:35045');
-        $queryParams = http_build_query([
-            'exchange_token' => $exchangeToken,
-            'pending' => $isNewUser ? '1' : '0',
-        ]);
-        return redirect()->to("{$frontendUrl}/login?{$queryParams}");
+    try {
+        $googleUser = Socialite::driver('google')->user();
+    } catch (\Exception $e) {
+        return response()->json(['message' => 'Google login failed.'], 400);
     }
+
+    $user = User::where('email', $googleUser->getEmail())->first();
+    $isNewUser = false;
+
+    if (!$user) {
+        foreach ($roleNames as $roleName) {
+            Role::firstOrCreate([
+                'name'       => $roleName,
+                'guard_name' => $guard,
+            ]);
+        }
+
+        $isNewUser = true;
+
+        $user = User::create([
+            'name'             => $googleUser->getName(),
+            'email'            => $googleUser->getEmail(),
+            'password'         => Hash::make(Str::random(16)), // random password
+            'google_id'        => $googleUser->getId(),
+            'email_verified_at'=> now(),
+            'status'           => 'active',
+            'approval_status'  => 'pending', // يحتاج موافقة
+        ]);
+
+        $center = Center::create([
+            'user_id'         => $user->id,
+            'name'            => $user->name,
+            'logo_url'        => null,
+            'primary_color'   => '#2d3250',
+            'secondary_color' => '#424769',
+            'subdomain'       => Str::slug($user->name) . '-' . $user->id,
+            'is_active'       => false, // غير مفعّل لحين الموافقة
+        ]);
+
+        $user->center_id = $center->id;
+        $user->save();
+
+        $user->syncRoles($roleNames);
+
+        $admins = User::role('admin')->get();
+        foreach ($admins as $admin) {
+            $admin->notify(new NewCenterAdminRegistration($user));
+        }
+    } else {
+        if (empty($user->google_id)) {
+            $user->forceFill([
+                'google_id' => $googleUser->getId(),
+            ])->save();
+        }
+    }
+
+    $exchangeToken = Str::random(40);
+    Cache::put('auth_exchange_' . $exchangeToken, $user->id, 60);
+
+    $frontendUrl = config('app.frontend_url', 'http://localhost:35045');
+
+    $queryParams = http_build_query([
+        'exchange_token' => $exchangeToken,
+        'pending'        => $isNewUser ? '1' : '0',
+    ]);
+
+    return redirect()->to("{$frontendUrl}/login?{$queryParams}");
+}
 
     public function exchangeToken(Request $request)
     {
