@@ -18,6 +18,7 @@ use Spatie\Permission\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
@@ -284,10 +285,7 @@ class AuthController extends Controller
     public function me()
     {
         $user = User::findOrFail(Auth::id());
-        return $this->success(array_merge(
-            $user->only(['id', 'name', 'email', 'phone', 'status', 'avatar', 'center_id', 'approval_status']),
-            ['roles' => $user->getRoleNames()]
-        ));
+        return $this->success($this->userPayload($user));
     }
 
     public function updateProfile(Request $request)
@@ -308,17 +306,21 @@ class AuthController extends Controller
             $user->phone = $validated['phone'];
         }
 
-        if ($request->hasFile('avatar')) {
-            $path = $request->file('avatar')->store('avatars', 'public');
+        if ($request->hasFile(key: 'avatar')) {
+            if ($user->avatar) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+            $path = $request->file('avatar')->storeAs(
+                'avatars',
+                'user_' . $user->id . '_' . time() . '.' . $request->file('avatar')->getClientOriginalExtension(),
+                'public'
+            );
             $user->avatar = $path;
         }
 
         $user->save();
 
-        return $this->success(array_merge(
-            $user->only(['id', 'name', 'email', 'phone', 'status', 'avatar', 'center_id']),
-            ['roles' => $user->getRoleNames()]
-        ), 'Profile updated successfully.');
+        return $this->success($this->userPayload($user), 'Profile updated successfully.');
     }
 
     public function updatePassword(Request $request)
@@ -432,10 +434,9 @@ class AuthController extends Controller
     private function userPayload(User $user): array
     {
         return array_merge(
-            $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id', 'approval_status']),
+            $user->only(['id', 'name', 'email', 'phone', 'status', 'center_id', 'approval_status', 'avatar']),
             [
                 'roles' => $user->getRoleNames(),
-                'role' => $user->getRoleNames()->first(),
             ]
         );
     }

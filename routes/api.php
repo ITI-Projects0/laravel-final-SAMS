@@ -38,7 +38,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
     Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
     Route::post('/send-reset-code', [AuthController::class, 'sendResetCode']);
     Route::post('/validate-reset-code', [AuthController::class, 'validateResetCode']); // New secure endpoint

@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -29,7 +30,7 @@ class User extends Authenticatable
         'activation_code',
         'google_id',
         'center_id',
-        'avatar', // Maybe make error
+        'avatar',
     ];
     protected $guard_name = 'api';
 
@@ -49,6 +50,11 @@ class User extends Authenticatable
         'status' => 'string',
         'approval_status' => 'string',
     ];
+
+    public function getAvatarAttribute($value)
+    {
+        return $value ? url('storage/' . $value) : null;
+    }
 
     public function isAdmin(): bool
     {
