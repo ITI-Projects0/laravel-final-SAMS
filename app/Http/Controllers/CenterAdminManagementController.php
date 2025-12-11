@@ -148,7 +148,7 @@ class CenterAdminManagementController extends Controller
 
             // Send email with credentials for non-student roles
             if ($validated['role'] !== 'student') {
-                Mail::to($user->email)->send(new NewAccountMail($user, $password, config('app.frontend_url/login')));
+                Mail::to($user->email)->send(new NewAccountMail($user, $password, $this->frontendLoginUrl()));
             }
 
             DB::commit();

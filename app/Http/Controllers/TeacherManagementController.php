@@ -191,7 +191,7 @@ class TeacherManagementController extends Controller
 
             // Send email with credentials
             if ($validated['role'] !== 'student') {
-                Mail::to($newUser->email)->send(new NewAccountMail($newUser, $password, config('app.frontend_url/login')));
+                Mail::to($newUser->email)->send(new NewAccountMail($newUser, $password, $this->frontendLoginUrl()));
             }
 
             DB::commit();
