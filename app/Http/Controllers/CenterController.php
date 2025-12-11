@@ -16,20 +16,49 @@ class CenterController extends Controller
     public function index()
     {
         try {
-            $query = Center::query()->with('owner:id,name,email');
+            $perPage = max(5, min(request()->integer('per_page', 10), 100));
+            $page = max(1, request()->integer('page', 1));
+            $search = request()->string('search')->toString();
+            $query = Center::query()->with('owner:id,name,email')->orderByDesc('updated_at');
+            $isActiveFilter = null;
 
             if (request()->has('is_active')) {
-                $isActive = filter_var(request()->get('is_active'), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
-                if (!is_null($isActive)) {
-                    $query->where('is_active', $isActive);
+                $isActiveFilter = filter_var(request()->get('is_active'), FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+                if (!is_null($isActiveFilter)) {
+                    $query->where('is_active', $isActiveFilter);
                 }
             }
 
-            $centers = $query->withCount('groups')->paginate(15);
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('subdomain', 'like', "%{$search}%")
+                        ->orWhereHas('owner', function ($ownerQuery) use ($search) {
+                            $ownerQuery->where('name', 'like', "%{$search}%")
+                                ->orWhere('email', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            $centers = $query
+                ->withCount('groups')
+                ->paginate($perPage, ['*'], 'page', $page);
 
             return $this->success(
                 data: CenterResource::collection($centers),
-                message: 'Centers retrieved successfully.'
+                message: 'Centers retrieved successfully.',
+                meta: [
+                    'pagination' => [
+                        'current_page' => $centers->currentPage(),
+                        'per_page' => $centers->perPage(),
+                        'total' => $centers->total(),
+                        'last_page' => $centers->lastPage(),
+                    ],
+                    'filters' => [
+                        'is_active' => $isActiveFilter,
+                        'search' => $search,
+                    ],
+                ]
             );
         } catch (\Exception $e) {
             return $this->error(

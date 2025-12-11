@@ -70,7 +70,7 @@ class AuthController extends Controller
             // Notify all admins about new registration
             $admins = User::role('admin')->get();
             foreach ($admins as $admin) {
-                $admin->notify(new \App\Notifications\NewCenterAdminRegistration($user));
+                $admin->notify(new NewCenterAdminRegistration($user));
             }
 
             Auth::login($user);

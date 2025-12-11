@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Auth;
 
 class UpdateCenterRequest extends FormRequest
 {
@@ -11,7 +13,7 @@ class UpdateCenterRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth()->check();
+        return User::findOrFail(Auth::id())->hasRole('admin');
     }
 
     /**
@@ -23,7 +25,7 @@ class UpdateCenterRequest extends FormRequest
     {
         return [
             'user_id' => ['nullable', 'exists:users,id'],
-            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'name' => ['sometimes', 'required', 'string', 'min:3', 'max:255'],
             'logo_url' => ['nullable', 'url'],
             'primary_color' => ['nullable', 'string', 'max:50'],
             'secondary_color' => ['nullable', 'string', 'max:50'],
