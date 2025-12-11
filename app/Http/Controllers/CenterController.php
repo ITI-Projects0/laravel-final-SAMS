@@ -31,18 +31,13 @@ class CenterController extends Controller
 
             if ($search) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('subdomain', 'like', "%{$search}%")
-                        ->orWhereHas('owner', function ($ownerQuery) use ($search) {
-                            $ownerQuery->where('name', 'like', "%{$search}%")
-                                ->orWhere('email', 'like', "%{$search}%");
-                        });
+                    $q->where('name', 'like', "%{$search}%");
                 });
             }
 
             $centers = $query
                 ->withCount('groups')
-                ->paginate($perPage, ['*'], 'page', $page);
+                ->paginate($perPage, 'page', $page);
 
             return $this->success(
                 data: CenterResource::collection($centers),

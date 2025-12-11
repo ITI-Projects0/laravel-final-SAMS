@@ -22,7 +22,7 @@ class LessonController extends Controller
             ->with('group')
             ->withCount('resources')
             ->orderBy('scheduled_at', 'asc')
-            ->paginate(20);
+            ->paginate(10);
 
         return $this->success(LessonResource::collection($lessons), 'Lessons retrieved successfully.');
     }

@@ -124,13 +124,36 @@ class CenterAdminController extends Controller
             return $this->error('Center not found for this admin.', 404);
         }
 
-        $groups = Group::with(['teacher:id,name,email'])
-        ->withCount('students')
-            ->where('center_id', $center->id)
-            ->orderBy('updated_at', 'desc')
-            ->paginate(15);
+        $perPage = max(5, min(request()->integer('per_page', 10), 100));
+        $search = request()->string('search')->toString();
 
-        return $this->success($groups, 'Center groups retrieved successfully.');
+        $query = Group::with(['teacher:id,name,email'])
+            ->withCount('students')
+            ->where('center_id', $center->id);
+
+        if ($search) {
+            $query->where('name', 'like', "%{$search}%");
+        }
+
+        $groups = $query
+            ->orderBy('updated_at', 'desc')
+            ->paginate($perPage);
+
+        return $this->success(
+            data: $groups,
+            message: 'Center groups retrieved successfully.',
+            meta: [
+                'pagination' => [
+                    'current_page' => $groups->currentPage(),
+                    'per_page' => $groups->perPage(),
+                    'total' => $groups->total(),
+                    'last_page' => $groups->lastPage(),
+                ],
+                'filters' => [
+                    'search' => $search,
+                ],
+            ]
+        );
     }
 
     /**
