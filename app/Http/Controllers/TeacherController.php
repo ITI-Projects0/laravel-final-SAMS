@@ -117,19 +117,12 @@ class TeacherController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(\App\Http\Requests\StoreTeacherRequest $request)
     {
         try {
             $this->authorize('create', User::class);
 
-            $validated = $request->validate([
-                'name' => ['required', 'string', 'max:255'],
-                'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-                'password' => ['required', 'string', 'min:8'],
-                'phone' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\\-()\\s]+$/', 'unique:users,phone'],
-                'status' => ['sometimes', 'in:active,inactive'],
-            ]);
-
+            $validated = $request->validated();
             $validated['password'] = Hash::make($validated['password']);
 
             $user = User::create($validated);
@@ -205,24 +198,12 @@ class TeacherController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, User $user)
+    public function update(\App\Http\Requests\UpdateTeacherRequest $request, User $user)
     {
         try {
             $this->authorize('update', $user);
-            $validated = $request->validate([
-                'name' => ['sometimes', 'required', 'string', 'max:255'],
-                'email' => [
-                    'sometimes',
-                    'required',
-                    'email',
-                    'max:255',
-                    Rule::unique('users', 'email')->ignore($user->id),
-                ],
-                'phone' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\\-()\\s]+$/', Rule::unique('users', 'phone')->ignore($user->id)],
-                'status' => ['sometimes', 'in:active,inactive'],
-            ]);
 
-            $user->update($validated);
+            $user->update($request->validated());
 
             return $this->success(
                 data: $user,

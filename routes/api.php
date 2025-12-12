@@ -147,6 +147,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ==========================================
     Route::get('/groups/{group}/students', [GroupStudentController::class, 'index']); // Group student list
     Route::post('/groups/{group}/students', [GroupStudentController::class, 'store']); // Add student to group
+    Route::delete('/groups/{group}/students/{user}', [GroupStudentController::class, 'destroy']); // Remove student from group
 
 
     // ==========================================

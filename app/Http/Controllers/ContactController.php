@@ -16,15 +16,10 @@ class ContactController extends Controller
     /**
      * Store a new contact message and send email notification.
      */
-    public function store(Request $request)
+    public function store(\App\Http\Requests\StoreContactRequest $request)
     {
         try {
-            $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'email' => 'required|email|max:255',
-                'subject' => 'nullable|string|max:255',
-                'message' => 'required|string|min:10',
-            ]);
+            $validated = $request->validated();
 
             $contact = Contact::create($validated);
             $admins = User::role('admin')->get();

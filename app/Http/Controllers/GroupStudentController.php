@@ -69,4 +69,16 @@ class GroupStudentController extends Controller
         return $this->success(null, 'Student added to group successfully.', 201);
     }
 
+    public function destroy(Group $group, User $user)
+    {
+        $this->authorize('update', $group);
+
+        if (!$group->students()->where('users.id', $user->id)->exists()) {
+            return $this->error('Student is not in this group.', 404);
+        }
+
+        $group->students()->detach($user->id);
+
+        return $this->success(null, 'Student removed from group successfully.');
+    }
 }

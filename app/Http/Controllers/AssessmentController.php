@@ -106,16 +106,12 @@ class AssessmentController extends Controller
         ]);
     }
 
-    public function storeResult(\Illuminate\Http\Request $request, Assessment $assessment)
+    public function storeResult(\App\Http\Requests\StoreAssessmentResultRequest $request, Assessment $assessment)
     {
         // Grading is considered an update action on the assessment context
         $this->authorize('update', $assessment);
 
-        $data = $request->validate([
-            'student_id' => 'required|exists:users,id',
-            'score' => 'required|numeric|min:0|max:' . $assessment->max_score,
-            'feedback' => 'nullable|string'
-        ]);
+        $data = $request->validated();
 
         $result = $assessment->results()->updateOrCreate(
             ['student_id' => $data['student_id']],

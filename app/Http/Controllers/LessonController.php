@@ -62,7 +62,7 @@ class LessonController extends Controller
     /**
      * Update the specified resource.
      */
-    public function update(StoreLessonRequest $request, Lesson $lesson)
+    public function update(\App\Http\Requests\UpdateLessonRequest $request, Lesson $lesson)
     {
         $this->authorize('update', $lesson);
 

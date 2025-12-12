@@ -83,7 +83,7 @@ class AuthController extends Controller
                 'token' => $this->maybeIssueToken($user, $request),
                 'requires_approval' => true,
             ], 'Registration successful. Your account is pending admin approval.', 201);
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             DB::rollBack();
             return $this->error(
                 message: $e->getMessage(),
@@ -126,78 +126,78 @@ class AuthController extends Controller
     }
 
     public function googleCallback()
-{
-    $guard = config('permission.defaults.guard', 'api');
-    $roleNames = ['center_admin', 'teacher'];
+    {
+        $guard = config('permission.defaults.guard', 'api');
+        $roleNames = ['center_admin', 'teacher'];
 
-    try {
-        $googleUser = Socialite::driver('google')->user();
-    } catch (\Exception $e) {
-        return response()->json(['message' => 'Google login failed.'], 400);
-    }
-
-    $user = User::where('email', $googleUser->getEmail())->first();
-    $isNewUser = false;
-
-    if (!$user) {
-        foreach ($roleNames as $roleName) {
-            Role::firstOrCreate([
-                'name'       => $roleName,
-                'guard_name' => $guard,
-            ]);
+        try {
+            $googleUser = Socialite::driver('google')->user();
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Google login failed.'], 400);
         }
 
-        $isNewUser = true;
+        $user = User::where('email', $googleUser->getEmail())->first();
+        $isNewUser = false;
 
-        $user = User::create([
-            'name'             => $googleUser->getName(),
-            'email'            => $googleUser->getEmail(),
-            'password'         => Hash::make(Str::random(16)), // random password
-            'google_id'        => $googleUser->getId(),
-            'email_verified_at'=> now(),
-            'status'           => 'active',
-            'approval_status'  => 'pending', // يحتاج موافقة
-        ]);
+        if (!$user) {
+            foreach ($roleNames as $roleName) {
+                Role::firstOrCreate([
+                    'name' => $roleName,
+                    'guard_name' => $guard,
+                ]);
+            }
 
-        $center = Center::create([
-            'user_id'         => $user->id,
-            'name'            => $user->name,
-            'logo_url'        => null,
-            'primary_color'   => '#2d3250',
-            'secondary_color' => '#424769',
-            'subdomain'       => Str::slug($user->name) . '-' . $user->id,
-            'is_active'       => false, // غير مفعّل لحين الموافقة
-        ]);
+            $isNewUser = true;
 
-        $user->center_id = $center->id;
-        $user->save();
-
-        $user->syncRoles($roleNames);
-
-        $admins = User::role('admin')->get();
-        foreach ($admins as $admin) {
-            $admin->notify(new NewCenterAdminRegistration($user));
-        }
-    } else {
-        if (empty($user->google_id)) {
-            $user->forceFill([
+            $user = User::create([
+                'name' => $googleUser->getName(),
+                'email' => $googleUser->getEmail(),
+                'password' => Hash::make(Str::random(16)), // random password
                 'google_id' => $googleUser->getId(),
-            ])->save();
+                'email_verified_at' => now(),
+                'status' => 'active',
+                'approval_status' => 'pending', // يحتاج موافقة
+            ]);
+
+            $center = Center::create([
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'logo_url' => null,
+                'primary_color' => '#2d3250',
+                'secondary_color' => '#424769',
+                'subdomain' => Str::slug($user->name) . '-' . $user->id,
+                'is_active' => false, // غير مفعّل لحين الموافقة
+            ]);
+
+            $user->center_id = $center->id;
+            $user->save();
+
+            $user->syncRoles($roleNames);
+
+            $admins = User::role('admin')->get();
+            foreach ($admins as $admin) {
+                $admin->notify(new NewCenterAdminRegistration($user));
+            }
+        } else {
+            if (empty($user->google_id)) {
+                $user->forceFill([
+                    'google_id' => $googleUser->getId(),
+                ])->save();
+            }
         }
+
+        $exchangeToken = Str::random(40);
+        Cache::put('auth_exchange_' . $exchangeToken, $user->id, 60);
+
+        $frontendUrl = config('app.frontend_url', 'http://localhost:35045');
+
+        $queryParams = http_build_query([
+            'exchange_token' => $exchangeToken,
+            'pending' => $isNewUser ? '1' : '0',
+        ]);
+
+        return redirect()->to("{$frontendUrl}/login?{$queryParams}");
     }
-
-    $exchangeToken = Str::random(40);
-    Cache::put('auth_exchange_' . $exchangeToken, $user->id, 60);
-
-    $frontendUrl = config('app.frontend_url', 'http://localhost:35045');
-
-    $queryParams = http_build_query([
-        'exchange_token' => $exchangeToken,
-        'pending'        => $isNewUser ? '1' : '0',
-    ]);
-
-    return redirect()->to("{$frontendUrl}/login?{$queryParams}");
-}
 
     public function exchangeToken(Request $request)
     {
@@ -287,15 +287,11 @@ class AuthController extends Controller
         return $this->success($this->userPayload($user));
     }
 
-    public function updateProfile(Request $request)
+    public function updateProfile(\App\Http\Requests\UpdateProfileRequest $request)
     {
         $user = $request->user();
 
-        $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'avatar' => 'nullable|image|max:2048',
-        ]);
+        $validated = $request->validated();
 
         if (array_key_exists('name', $validated)) {
             $user->name = $validated['name'];
@@ -322,19 +318,11 @@ class AuthController extends Controller
         return $this->success($this->userPayload($user), 'Profile updated successfully.');
     }
 
-    public function updatePassword(Request $request)
+    public function updatePassword(\App\Http\Requests\UpdatePasswordRequest $request)
     {
         $user = $request->user();
 
-        $validated = $request->validate([
-            'current_password' => ['required', 'string'],
-            'password' => [
-                'required',
-                'string',
-                'confirmed',
-                Password::min(8)->letters()->mixedCase()->numbers()->symbols(),
-            ],
-        ]);
+        $validated = $request->validated();
 
         // Verify current password
         if (!Hash::check($validated['current_password'], $user->password)) {
@@ -386,10 +374,12 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid or expired reset code.'], 400);
         }
 
-        return response()->json(['data' => [
-            'token' => $request->code,
-            'email' => $record->email,
-        ]]);
+        return response()->json([
+            'data' => [
+                'token' => $request->code,
+                'email' => $record->email,
+            ]
+        ]);
     }
 
     public function resetPassword(Request $request)
