@@ -7,6 +7,7 @@ use App\Http\Resources\TeacherResource;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class TeacherController extends Controller
@@ -27,19 +28,28 @@ class TeacherController extends Controller
                 $sortBy = 'created_at';
             }
 
-            $teachersQuery = User::role('teacher')
-                ->with(['taughtGroups' => function ($query) {
-                    $query
-                        ->with(['center:id,name'])
-                        ->withCount([
-                            'students',
-                            'pendingStudents',
-                            'lessons',
-                            'attendances as attendance_today_count' => function ($q) {
-                                $q->whereDate('date', today());
-                            },
-                        ]);
-                }])
+            $user = Auth::user();
+            $role = $request->input('role', 'teacher');
+            if (!in_array($role, ['teacher', 'assistant'])) {
+                $role = 'teacher';
+            }
+
+            $teachersQuery = User::role($role)
+                ->with([
+                    'center:id,name',
+                    'taughtGroups' => function ($query) {
+                        $query
+                            ->with(['center:id,name'])
+                            ->withCount([
+                                'students',
+                                'pendingStudents',
+                                'lessons',
+                                'attendances as attendance_today_count' => function ($q) {
+                                    $q->whereDate('date', today());
+                                },
+                            ]);
+                    }
+                ])
                 ->withCount([
                     'taughtGroups',
                     'taughtGroups as approved_students_count' => function ($q) {
@@ -53,6 +63,17 @@ class TeacherController extends Controller
                             ->selectRaw('count(distinct group_students.student_id)');
                     },
                 ]);
+
+            // Scope to center for non-admin users
+            if ($user->hasAnyRole(['center_admin', 'assistant', 'teacher'])) {
+                $centerId = $user->center_id ?? $user->ownedCenter?->id;
+                if ($centerId) {
+                    $teachersQuery->where('center_id', $centerId);
+                } else {
+                    // Safety: if no center assigned, show nothing
+                    $teachersQuery->whereRaw('1 = 0');
+                }
+            }
 
             if ($search) {
                 $teachersQuery->where(function ($query) use ($search) {

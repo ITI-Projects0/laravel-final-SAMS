@@ -26,7 +26,7 @@ class AdminCenterApprovalController extends Controller
                 ->whereHas('roles', function ($query) {
                     $query->where('name', 'center_admin');
                 })
-                ->with(['ownedCenter', 'roles'])
+                ->with(['center', 'roles'])
                 ->orderBy('created_at', 'desc')
                 ->paginate(15);
 

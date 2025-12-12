@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Assessment;
 use App\Http\Requests\StoreAssessmentRequest;
 use App\Http\Requests\UpdateAssessmentRequest;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class AssessmentController extends Controller
 {
+    use AuthorizesRequests;
+
     /**
      * Display a listing of the resource.
      */
@@ -29,7 +32,23 @@ class AssessmentController extends Controller
      */
     public function store(StoreAssessmentRequest $request, \App\Models\Lesson $lesson)
     {
-        // $this->authorize('create', Assessment::class); // Assuming policy exists or we skip for now
+        $this->authorize('create', Assessment::class);
+
+        // Additional check: Ensure the user can actually add an assessment to THIS lesson's group
+        // The 'create' policy is generic, so we might want to check if they can update the lesson or group
+        // But for now, let's rely on the fact that if they can create, they are a Teacher/Assistant/Admin.
+        // If Teacher, we must ensure the lesson belongs to their group.
+        if (auth()->user()->hasRole('teacher')) {
+            if ($lesson->group->teacher_id !== auth()->id()) {
+                abort(403, 'You can only add assessments to your own groups.');
+            }
+        }
+        // If Assistant, ensure lesson is in their center
+        if (auth()->user()->hasRole('assistant')) {
+            if ($lesson->group->center_id !== auth()->user()->center_id) {
+                abort(403, 'You can only add assessments to groups in your center.');
+            }
+        }
 
         $data = $request->validated();
         $data['lesson_id'] = $lesson->id;
@@ -56,11 +75,10 @@ class AssessmentController extends Controller
     /**
      * Display the specified resource.
      */
-    /**
-     * Display the specified resource.
-     */
     public function show(Assessment $assessment)
     {
+        $this->authorize('view', $assessment);
+
         $assessment->load(['results']);
         $group = $assessment->group;
 
@@ -90,6 +108,9 @@ class AssessmentController extends Controller
 
     public function storeResult(\Illuminate\Http\Request $request, Assessment $assessment)
     {
+        // Grading is considered an update action on the assessment context
+        $this->authorize('update', $assessment);
+
         $data = $request->validate([
             'student_id' => 'required|exists:users,id',
             'score' => 'required|numeric|min:0|max:' . $assessment->max_score,
@@ -107,8 +128,11 @@ class AssessmentController extends Controller
             'data' => $result
         ]);
     }
+
     public function update(UpdateAssessmentRequest $request, Assessment $assessment)
     {
+        $this->authorize('update', $assessment);
+
         $data = $request->validated();
 
         if (!isset($data['max_score'])) {
@@ -126,6 +150,8 @@ class AssessmentController extends Controller
 
     public function destroy(Assessment $assessment)
     {
+        $this->authorize('delete', $assessment);
+
         $assessment->delete();
 
         return response()->json([

@@ -42,13 +42,37 @@ class GroupController extends Controller
                 ]);
 
             $user = User::findOrFail(Auth::id());
-            if ($user?->hasRole('center_admin')) {
+            
+            // Admin sees all (no filter)
+            if ($user->hasRole('admin')) {
+                // No filter
+            } 
+            // Center Admin & Assistant see all groups in their center
+            elseif ($user->hasAnyRole(['center_admin', 'assistant'])) {
                 $centerId = $user->center_id ?? $user->ownedCenter?->id;
                 if ($centerId) {
                     $query->where('center_id', $centerId);
+                } else {
+                    // If no center assigned, show nothing (safety)
+                    $query->whereRaw('1 = 0');
                 }
-            } elseif (!$user?->hasRole('admin')) {
-                $query->where('teacher_id', $user?->id);
+            } 
+            // Teacher sees only their own groups
+            elseif ($user->hasRole('teacher')) {
+                $query->where('teacher_id', $user->id);
+            }
+            // Student sees groups they are in
+            elseif ($user->hasRole('student')) {
+                $query->whereHas('students', function($q) use ($user) {
+                    $q->where('users.id', $user->id);
+                });
+            }
+            // Parent sees groups their children are in
+            elseif ($user->hasRole('parent')) {
+                $childrenIds = $user->students()->pluck('users.id')->toArray();
+                $query->whereHas('students', function($q) use ($childrenIds) {
+                    $q->whereIn('users.id', $childrenIds);
+                });
             }
 
             if ($search) {
@@ -96,13 +120,21 @@ class GroupController extends Controller
             $this->authorize('create', Group::class);
 
             $allAdmins = User::role('admin')->get();
+            $user = Auth::user();
 
             $data = $request->validated();
-            $data['teacher_id'] = Auth::id();
+            $data['teacher_id'] = $user->id;
+            
+            // Force center_id from authenticated user
+            $data['center_id'] = $user->center_id;
+
+            if (!$data['center_id']) {
+                return $this->error('You must belong to a center to create a group.', 400);
+            }
 
             $group = Group::create($data);
             $group->load('teacher');
-            $teacher = $group->teacher ?? User::find($data['teacher_id']);
+            $teacher = $group->teacher ?? $user;
 
             // Auto-create lessons based on sessions_count & schedule_days
             $sessionCount = (int) ($data['sessions_count'] ?? 0);

@@ -9,23 +9,19 @@ use App\Models\Group;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class AttendanceController extends Controller
 {
-    protected function canManageGroup(Group $group): bool
-    {
-        $groupStudentController = new GroupStudentController();
-        return $groupStudentController->canManageGroup($group);
-    }
+    use AuthorizesRequests;
 
     public function index(Request $request, $groupId)
     {
         try {
             $group = Group::findOrFail($groupId);
 
-            if (!$this->canManageGroup($group)) {
-                return $this->error('Unauthorized.', 403);
-            }
+            // View attendance requires view permission on the group
+            $this->authorize('view', $group);
 
             $query = Attendance::where('group_id', $group->id);
 
@@ -55,9 +51,8 @@ class AttendanceController extends Controller
         try {
             $group = Group::findOrFail($groupId);
 
-            if (!$this->canManageGroup($group)) {
-                return $this->error('Unauthorized.', 403);
-            }
+            // Taking attendance is considered updating the group (operational)
+            $this->authorize('update', $group);
 
             $data = $request->validated();
             $date = $data['date'];

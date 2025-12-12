@@ -90,6 +90,7 @@ class CenterAdminController extends Controller
         $students = $format(
             $applySearch(User::role('student'))
                 ->where('center_id', $centerId)
+                ->with(['parents:id,name,email,phone'])
                 ->orderBy('updated_at', 'desc')
                 ->paginate($pageSize, ['id', 'name', 'email', 'phone', 'status'])
         );
