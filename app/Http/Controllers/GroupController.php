@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateGroupRequest;
 use App\Models\User;
 use App\Models\Lesson;
 use App\Notifications\NewGroupCreated;
+use App\Notifications\GroupUpdated;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -55,8 +56,8 @@ class GroupController extends Controller
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('subject', 'like', "%{$search}%")
-                        ->orWhereHas('center', fn ($c) => $c->where('name', 'like', "%{$search}%"))
-                        ->orWhereHas('teacher', fn ($t) => $t->where('name', 'like', "%{$search}%"));
+                        ->orWhereHas('center', fn($c) => $c->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('teacher', fn($t) => $t->where('name', 'like', "%{$search}%"));
                 });
             }
 
@@ -186,7 +187,25 @@ class GroupController extends Controller
             $this->authorize('update', $group);
 
             $data = $request->validated();
+
+            // Track changes for notification
+            $changes = [];
+            $trackFields = ['name', 'description', 'subject', 'schedule_days', 'schedule_time'];
+            foreach ($trackFields as $field) {
+                if (isset($data[$field]) && $group->$field != $data[$field]) {
+                    $changes[$field] = $data[$field];
+                }
+            }
+
             $group->update($data);
+
+            // Send notification to students if there are significant changes
+            if (!empty($changes)) {
+                $students = $group->students()->wherePivot('status', 'approved')->get();
+                foreach ($students as $student) {
+                    $student->notify(new GroupUpdated($group, $changes));
+                }
+            }
 
             // Regenerate lessons if sessions_count or schedule changes are provided
             $sessionCount = $data['sessions_count'] ?? null;
