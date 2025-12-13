@@ -24,9 +24,12 @@ class AdminDashboardController extends Controller
         $today = Carbon::today();
         $attendanceToday = Attendance::whereDate('created_at', $today)->count();
 
-        $recent = Group::with(['center:id,name', 'teacher:id,name'])
-            ->latest()
-            ->get(['id', 'name', 'created_at', 'center_id', 'teacher_id']);
+        // Paginate recent activity
+        $perPage = request('per_page', 10);
+        $recentQuery = \App\Models\ActivityLog::latest()
+            ->select(['id', 'description as name', 'created_at']); // Mapping description to name for frontend compatibility
+
+        $recentPaginated = $recentQuery->paginate($perPage);
 
         return $this->success([
             'stats' => [
@@ -40,7 +43,13 @@ class AdminDashboardController extends Controller
                 'students' => $studentsCount,
                 'attendanceToday' => $attendanceToday,
             ],
-            'recent' => $recent,
+            'recent' => [
+                'data' => $recentPaginated->items(),
+                'current_page' => $recentPaginated->currentPage(),
+                'per_page' => $recentPaginated->perPage(),
+                'total' => $recentPaginated->total(),
+                'last_page' => $recentPaginated->lastPage(),
+            ],
         ], 'Admin stats retrieved successfully.');
     }
 }

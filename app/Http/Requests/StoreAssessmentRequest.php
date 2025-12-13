@@ -22,4 +22,16 @@ class StoreAssessmentRequest extends FormRequest
             'max_score' => ['nullable', 'integer', 'min:0'],
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'title.required' => 'Assessment title is required.',
+            'title.max' => 'Assessment title cannot exceed 255 characters.',
+            'scheduled_at.required' => 'Scheduled date is required.',
+            'scheduled_at.date' => 'Invalid date format.',
+            'max_score.integer' => 'Max score must be an integer.',
+            'max_score.min' => 'Max score cannot be negative.',
+        ];
+    }
 }

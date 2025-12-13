@@ -37,7 +37,7 @@ class CenterController extends Controller
 
             $centers = $query
                 ->withCount('groups')
-                ->paginate($perPage, 'page', $page);
+                ->paginate($perPage, ['*'], 'page', $page);
 
             return $this->success(
                 data: CenterResource::collection($centers),

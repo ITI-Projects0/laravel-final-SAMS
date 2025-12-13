@@ -22,14 +22,14 @@ class StudentAiController extends Controller
         try {
             $quiz = $this->service->generateQuiz($data['lesson_title'], $count);
         } catch (\Throwable $e) {
-            return response()->json([
-                'message' => 'AI service error.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-                'quiz' => [],
-            ], 500);
+            return $this->error(
+                message: 'AI service error.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null
+            );
         }
 
-        return response()->json($quiz);
+        return $this->success($quiz);
     }
 
     public function summary(Request $request): JsonResponse
@@ -41,14 +41,14 @@ class StudentAiController extends Controller
         try {
             $summary = $this->service->lessonSummary($data['lesson_text']);
         } catch (\Throwable $e) {
-            return response()->json([
-                'message' => 'AI service error.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-                'summary' => '',
-            ], 500);
+            return $this->error(
+                message: 'AI service error.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null
+            );
         }
 
-        return response()->json([
+        return $this->success([
             'summary' => $summary,
         ]);
     }
@@ -62,14 +62,14 @@ class StudentAiController extends Controller
         try {
             $plan = $this->service->studyPlan((int) $data['student_id']);
         } catch (\Throwable $e) {
-            return response()->json([
-                'message' => 'AI service error.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-                'plan' => '',
-            ], 500);
+            return $this->error(
+                message: 'AI service error.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null
+            );
         }
 
-        return response()->json([
+        return $this->success([
             'plan' => $plan,
         ]);
     }

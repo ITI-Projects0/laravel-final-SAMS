@@ -16,35 +16,37 @@ use Illuminate\Support\Facades\DB;
 
 class AiInsightsController extends Controller
 {
-    public function __construct(protected AiClient $ai) {}
+    public function __construct(protected AiClient $ai)
+    {
+    }
 
     public function insights(Request $request): JsonResponse
     {
         $filters = $request->validate([
             'class_id' => 'nullable|integer',
-            'from'     => 'nullable|date',
-            'to'       => 'nullable|date',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date',
         ]);
 
         try {
             $stats = $this->getStats($filters);
         } catch (\Throwable $e) {
-            return response()->json([
-                'message'  => 'Failed to build insights.',
-                'error'    => config('app.debug') ? $e->getMessage() : null,
-                'insights' => '',
-            ], 500);
+            return $this->error(
+                message: 'Failed to build insights.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null
+            );
         }
 
         $prompt = $this->buildInsightsPrompt($stats);
 
         $messages = [
             [
-                'role'    => 'system',
+                'role' => 'system',
                 'content' => 'You are an assistant that summarizes attendance and grades insights for managers in concise English. Keep it under 6 lines.',
             ],
             [
-                'role'    => 'user',
+                'role' => 'user',
                 'content' => $prompt,
             ],
         ];
@@ -52,14 +54,14 @@ class AiInsightsController extends Controller
         try {
             $reply = $this->ai->chat($messages);
         } catch (\Throwable $e) {
-            return response()->json([
-                'message' => 'AI service error.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-                'insights' => '',
-            ], 500);
+            return $this->error(
+                message: 'AI service error.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null
+            );
         }
 
-        return response()->json([
+        return $this->success([
             'insights' => $reply,
         ]);
     }
@@ -192,13 +194,13 @@ class AiInsightsController extends Controller
         }
 
         return [
-            'total_students'        => $totalStudents,
-            'avg_attendance_rate'   => $avgAttendanceRate,
+            'total_students' => $totalStudents,
+            'avg_attendance_rate' => $avgAttendanceRate,
             'lowest_attendance_day' => $lowestAttendanceDay,
             'groups_low_attendance' => $groupsLowAttendance,
-            'avg_grade'             => round($avgGrade, 2),
-            'lowest_subjects'       => $lowestSubjects,
-            'improving_groups'      => $improvingGroups,
+            'avg_grade' => round($avgGrade, 2),
+            'lowest_subjects' => $lowestSubjects,
+            'improving_groups' => $improvingGroups,
         ];
     }
 

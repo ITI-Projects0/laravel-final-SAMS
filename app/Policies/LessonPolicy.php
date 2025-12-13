@@ -13,8 +13,7 @@ class LessonPolicy
      */
     public function viewAny(User $user): bool
     {
-        // Admin, center_admin, teacher, assistant can view lessons
-        return $user->hasAnyRole(['admin', 'center_admin', 'teacher', 'assistant']);
+        return true;
     }
 
     /**
@@ -22,7 +21,36 @@ class LessonPolicy
      */
     public function view(User $user, Lesson $lesson): bool
     {
-        return $this->canAccessGroup($user, $lesson);
+        if ($user->hasRole('admin')) {
+            return true;
+        }
+
+        $group = $lesson->group;
+        if (!$group) return false;
+
+        // Center Admin & Assistant: View all lessons in their center
+        if ($user->hasAnyRole(['center_admin', 'assistant'])) {
+            $centerId = $user->center_id ?? $user->ownedCenter?->id;
+            return $centerId && $group->center_id === $centerId;
+        }
+
+        // Teacher: View ONLY their own group's lessons
+        if ($user->hasRole('teacher')) {
+            return $group->teacher_id === $user->id;
+        }
+
+        // Student: View if member of the group
+        if ($user->hasRole('student')) {
+            return $group->students()->where('users.id', $user->id)->exists();
+        }
+
+        // Parent: View if child is member
+        if ($user->hasRole('parent')) {
+            $childrenIds = $user->students()->pluck('users.id')->toArray();
+            return $group->students()->whereIn('users.id', $childrenIds)->exists();
+        }
+
+        return false;
     }
 
     /**
@@ -30,8 +58,11 @@ class LessonPolicy
      */
     public function create(User $user): bool
     {
-        // Teacher, assistant, center_admin, admin can create lessons
-        return $user->hasAnyRole(['admin', 'center_admin', 'teacher', 'assistant']);
+        // Admin: NO
+        // Center Admin: NO
+        // Teacher: YES
+        // Assistant: YES
+        return $user->hasAnyRole(['teacher', 'assistant']);
     }
 
     /**
@@ -39,7 +70,31 @@ class LessonPolicy
      */
     public function update(User $user, Lesson $lesson): bool
     {
-        return $this->canAccessGroup($user, $lesson);
+        // Admin: NO
+        if ($user->hasRole('admin')) {
+            return false;
+        }
+
+        $group = $lesson->group;
+        if (!$group) return false;
+
+        // Center Admin: NO
+        if ($user->hasRole('center_admin')) {
+            return false;
+        }
+
+        // Teacher: Update ONLY their own group's lessons
+        if ($user->hasRole('teacher')) {
+            return $group->teacher_id === $user->id;
+        }
+
+        // Assistant: Can edit any lesson in their center
+        if ($user->hasRole('assistant')) {
+            $centerId = $user->center_id;
+            return $centerId && $group->center_id === $centerId;
+        }
+
+        return false;
     }
 
     /**
@@ -47,52 +102,31 @@ class LessonPolicy
      */
     public function delete(User $user, Lesson $lesson): bool
     {
-        return $this->canAccessGroup($user, $lesson);
-    }
-
-    /**
-     * Determine whether the user can restore the model.
-     */
-    public function restore(User $user, Lesson $lesson): bool
-    {
-        return false;
-    }
-
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
-    public function forceDelete(User $user, Lesson $lesson): bool
-    {
-        return false;
-    }
-
-    protected function canAccessGroup(User $user, Lesson $lesson): bool
-    {
+        // Admin: NO
         if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        $group = $lesson->group;
-
-        if (!$group) {
             return false;
         }
 
-        // Teacher of the group
-        if ($group->teacher_id === $user->id) {
-            return true;
+        $group = $lesson->group;
+        if (!$group) return false;
+
+        // Teacher: Can delete lessons in their OWN group
+        if ($user->hasRole('teacher')) {
+            return $group->teacher_id === $user->id;
         }
 
-        // Center admin of the center that owns the group
-        if ($user->hasRole('center_admin') && $group->center?->user_id === $user->id) {
-            return true;
-        }
-
-        // Assistants: we allow assistants who are students/assistants in same center via groups relation
-        if ($user->hasRole('assistant')) {
-            return $user->groups()->where('center_id', $group->center_id)->exists();
-        }
-
+        // Center Admin: NO
+        // Assistant: NO
         return false;
+    }
+
+    public function restore(User $user, Lesson $lesson): bool
+    {
+        return $user->hasRole('admin');
+    }
+
+    public function forceDelete(User $user, Lesson $lesson): bool
+    {
+        return $user->hasRole('admin');
     }
 }

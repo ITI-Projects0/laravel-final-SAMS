@@ -23,5 +23,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Broadcast notifications when they are stored in the database
         DatabaseNotification::observe(NotificationObserver::class);
+        \App\Models\User::observe(\App\Observers\UserObserver::class);
+        \App\Models\Group::observe(\App\Observers\GroupObserver::class);
     }
 }

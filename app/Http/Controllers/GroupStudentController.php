@@ -6,42 +6,11 @@ use App\Models\Group;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class GroupStudentController extends Controller
 {
-    public function canManageGroup(Group $group): bool
-    {
-        /** @var User|null $user */
-        $user = Auth::user();
-        if (!$user) {
-            return false;
-        }
-
-        // Broad permissions first (super-admin or explicit permissions)
-        if ($user->hasRole('admin') || $user->can('manage groups') || $user->can('manage attendance')) {
-            return true;
-        }
-
-        $group->loadMissing('center');
-        $userCenterId = $user->center_id ?? $user->ownedCenter?->id;
-
-        // Teacher directly assigned to the group
-        if ($user->hasRole('teacher') && $group->teacher_id === $user->id) {
-            return true;
-        }
-
-        // Center admin over the group center
-        if ($user->hasRole('center_admin') && $userCenterId && $group->center_id === $userCenterId) {
-            return true;
-        }
-
-        // Assistant working within the same center
-        if ($user->hasRole('assistant') && $userCenterId && $group->center_id === $userCenterId) {
-            return true;
-        }
-
-        return false;
-    }
+    use AuthorizesRequests;
 
     public function index(Request $request, Group $group)
     {
@@ -53,13 +22,12 @@ class GroupStudentController extends Controller
             }
         }
 
-        if (!$this->canManageGroup($group)) {
-            return $this->error('Unauthorized.', 403);
-        }
+        $this->authorize('view', $group);
 
         // Paginate approved students
         $approved = $group->students()
             ->select('users.id', 'users.name', 'users.email', 'users.phone')
+            ->with('parents:id,name,email,phone')
             ->withPivot('status', 'joined_at', 'is_pay')
             ->paginate(20);
 
@@ -77,9 +45,8 @@ class GroupStudentController extends Controller
 
     public function store(Request $request, Group $group)
     {
-        if (!$this->canManageGroup($group)) {
-            return $this->error('Unauthorized.', 403);
-        }
+        // Adding a student to a group is considered updating the group
+        $this->authorize('update', $group);
 
         $data = $request->validate([
             'student_id' => ['required', 'exists:users,id'],
@@ -102,4 +69,16 @@ class GroupStudentController extends Controller
         return $this->success(null, 'Student added to group successfully.', 201);
     }
 
+    public function destroy(Group $group, User $user)
+    {
+        $this->authorize('update', $group);
+
+        if (!$group->students()->where('users.id', $user->id)->exists()) {
+            return $this->error('Student is not in this group.', 404);
+        }
+
+        $group->students()->detach($user->id);
+
+        return $this->success(null, 'Student removed from group successfully.');
+    }
 }

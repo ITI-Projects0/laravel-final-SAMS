@@ -56,18 +56,18 @@ class TeacherStatsController extends Controller
                 ->count();
         }
 
-        // Recent activities (last 5 groups)
-        $recentActivities = Group::whereIn('id', $groupIds)
-            ->with('center:id,name')
+        // Recent activities (last 5 group updates)
+        $recentActivities = \App\Models\ActivityLog::where('subject_type', 'Group')
+            ->whereIn('subject_id', $groupIds)
             ->latest()
             ->take(5)
-            ->get(['id', 'name', 'created_at', 'center_id'])
-            ->map(function ($group) {
+            ->get()
+            ->map(function ($log) {
                 return [
-                    'title' => $group->name,
+                    'title' => $log->description,
                     'titleKey' => null,
-                    'time' => $group->created_at->diffForHumans(),
-                    'created_at' => $group->created_at->toISOString(),
+                    'time' => $log->created_at->diffForHumans(),
+                    'created_at' => $log->created_at->toISOString(),
                 ];
             });
 
