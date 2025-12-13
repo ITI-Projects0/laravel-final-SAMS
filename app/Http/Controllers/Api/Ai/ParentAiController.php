@@ -9,7 +9,9 @@ use Illuminate\Http\Request;
 
 class ParentAiController extends Controller
 {
-    public function __construct(protected ParentAiService $service) {}
+    public function __construct(protected ParentAiService $service)
+    {
+    }
 
     public function weeklySummary(Request $request): JsonResponse
     {
@@ -20,14 +22,14 @@ class ParentAiController extends Controller
         try {
             $result = $this->service->weeklySummary((int) $data['student_id']);
         } catch (\Throwable $e) {
-            return response()->json([
-                'message' => 'AI service error.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-                'summary' => '',
-            ], 500);
+            return $this->error(
+                message: 'AI service error.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null
+            );
         }
 
-        return response()->json([
+        return $this->success([
             'summary' => $result['summary'],
             'data' => $result['data'],
         ]);
@@ -43,14 +45,14 @@ class ParentAiController extends Controller
         try {
             $reply = $this->service->explainReport((int) $data['student_id'], $data['text']);
         } catch (\Throwable $e) {
-            return response()->json([
-                'message' => 'AI service error.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-                'summary' => '',
-            ], 500);
+            return $this->error(
+                message: 'AI service error.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null
+            );
         }
 
-        return response()->json([
+        return $this->success([
             'summary' => $reply,
         ]);
     }

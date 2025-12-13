@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Lesson;
 use App\Notifications\GroupUpdated;
 use App\Notifications\NewGroupCreated;
+use App\Notifications\GroupUpdated;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -43,21 +44,45 @@ class GroupController extends Controller
                 ]);
 
             $user = User::findOrFail(Auth::id());
-            if ($user?->hasRole('center_admin')) {
+            
+            // Admin sees all (no filter)
+            if ($user->hasRole('admin')) {
+                // No filter
+            } 
+            // Center Admin & Assistant see all groups in their center
+            elseif ($user->hasAnyRole(['center_admin', 'assistant'])) {
                 $centerId = $user->center_id ?? $user->ownedCenter?->id;
                 if ($centerId) {
                     $query->where('center_id', $centerId);
+                } else {
+                    // If no center assigned, show nothing (safety)
+                    $query->whereRaw('1 = 0');
                 }
-            } elseif (!$user?->hasRole('admin')) {
-                $query->where('teacher_id', $user?->id);
+            } 
+            // Teacher sees only their own groups
+            elseif ($user->hasRole('teacher')) {
+                $query->where('teacher_id', $user->id);
+            }
+            // Student sees groups they are in
+            elseif ($user->hasRole('student')) {
+                $query->whereHas('students', function($q) use ($user) {
+                    $q->where('users.id', $user->id);
+                });
+            }
+            // Parent sees groups their children are in
+            elseif ($user->hasRole('parent')) {
+                $childrenIds = $user->students()->pluck('users.id')->toArray();
+                $query->whereHas('students', function($q) use ($childrenIds) {
+                    $q->whereIn('users.id', $childrenIds);
+                });
             }
 
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('subject', 'like', "%{$search}%")
-                        ->orWhereHas('center', fn ($c) => $c->where('name', 'like', "%{$search}%"))
-                        ->orWhereHas('teacher', fn ($t) => $t->where('name', 'like', "%{$search}%"));
+                        ->orWhereHas('center', fn($c) => $c->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('teacher', fn($t) => $t->where('name', 'like', "%{$search}%"));
                 });
             }
 
@@ -97,13 +122,21 @@ class GroupController extends Controller
             $this->authorize('create', Group::class);
 
             $allAdmins = User::role('admin')->get();
+            $user = Auth::user();
 
             $data = $request->validated();
-            $data['teacher_id'] = Auth::id();
+            $data['teacher_id'] = $user->id;
+            
+            // Force center_id from authenticated user
+            $data['center_id'] = $user->center_id;
+
+            if (!$data['center_id']) {
+                return $this->error('You must belong to a center to create a group.', 400);
+            }
 
             $group = Group::create($data);
             $group->load('teacher');
-            $teacher = $group->teacher ?? User::find($data['teacher_id']);
+            $teacher = $group->teacher ?? $user;
 
             // Auto-create lessons based on sessions_count & schedule_days
             $sessionCount = (int) ($data['sessions_count'] ?? 0);
@@ -187,12 +220,25 @@ class GroupController extends Controller
             $this->authorize('update', $group);
 
             $data = $request->validated();
+
+            // Track changes for notification
+            $changes = [];
+            $trackFields = ['name', 'description', 'subject', 'schedule_days', 'schedule_time'];
+            foreach ($trackFields as $field) {
+                if (isset($data[$field]) && $group->$field != $data[$field]) {
+                    $changes[$field] = $data[$field];
+                }
+            }
+
             $group->update($data);
 
-            $changedFields = array_intersect_key(
-                $group->getChanges(),
-                array_flip(['name','description','subject','schedule_days','schedule_time','sessions_count','is_active','academic_year','teacher_id',])
-            );
+            // Send notification to students if there are significant changes
+            if (!empty($changes)) {
+                $students = $group->students()->wherePivot('status', 'approved')->get();
+                foreach ($students as $student) {
+                    $student->notify(new GroupUpdated($group, $changes));
+                }
+            }
 
             // Regenerate lessons if sessions_count or schedule changes are provided
             $sessionCount = $data['sessions_count'] ?? null;

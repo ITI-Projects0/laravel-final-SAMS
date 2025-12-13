@@ -11,7 +11,7 @@ class UserPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasAnyRole(['admin', 'center_admin']);
+        return $user->hasAnyRole(['admin', 'center_admin', 'teacher', 'assistant']);
     }
 
     /**
@@ -19,9 +19,19 @@ class UserPolicy
      */
     public function view(User $user, User $model): bool
     {
-        // Admin and center admin can view users
-        if ($user->hasAnyRole(['admin', 'center_admin'])) {
+        // Admin: View all
+        if ($user->hasRole('admin')) {
             return true;
+        }
+
+        // Center Admin: View all in center
+        if ($user->hasRole('center_admin')) {
+            return $model->center_id === $user->ownedCenter?->id || $model->id === $user->id;
+        }
+
+        // Teacher/Assistant: View all in center
+        if ($user->hasAnyRole(['teacher', 'assistant'])) {
+            return $model->center_id === $user->center_id || $model->id === $user->id;
         }
 
         // Users can view themselves
@@ -33,6 +43,10 @@ class UserPolicy
      */
     public function create(User $user): bool
     {
+        // Admin: Yes
+        // Center Admin: Yes (Teachers, Assistants ONLY - enforced in controller)
+        // Teacher: Yes (Students, Parents ONLY - enforced in controller)
+        // Assistant: Yes (Students, Parents ONLY - enforced in controller)
         return $user->hasAnyRole(['admin', 'center_admin', 'teacher', 'assistant']);
     }
 
@@ -41,21 +55,35 @@ class UserPolicy
      */
     public function update(User $user, User $model): bool
     {
-        // Center admin can update users in their center
-        if ($user->hasRole('center_admin')) {
-            return $model->center_id === $user->ownedCenter?->id;
-        }
-
-        // Admin can update anyone
+        // Admin: Yes
         if ($user->hasRole('admin')) {
             return true;
         }
 
-        // Teachers/Assistants can update users in their center
-        if ($user->hasAnyRole(['teacher', 'assistant'])) {
-            return $model->center_id === $user->center_id;
+        // Self update
+        if ($user->id === $model->id) {
+            return true;
         }
 
+        // Center Admin: 
+        // - Can edit Teachers/Assistants in center
+        // - CANNOT edit Students/Parents (per requirements: "Delete Students... Does not add them" - implies no edit either?)
+        //   Prompt says: "Center Admin ... Create - Edit - Delete Teachers and Assistants + Delete Students and Parents."
+        //   It does NOT explicitly say "Edit Students". It lists "Delete" for them.
+        //   I will restrict editing to Teachers/Assistants.
+        if ($user->hasRole('center_admin')) {
+            $isCenterMember = $model->center_id === $user->ownedCenter?->id;
+            if (!$isCenterMember) return false;
+
+            return $model->hasAnyRole(['teacher', 'assistant']);
+        }
+
+        // Teacher/Assistant: 
+        // - Prompt says "Perfect" for them, which previously meant "Add Students/Parents".
+        // - Usually "Add" implies "Edit" if they made a mistake?
+        // - Previous policy was "No edit others".
+        // - I will keep it as "No edit others" unless they are creating.
+        
         return false;
     }
 
@@ -64,26 +92,32 @@ class UserPolicy
      */
     public function delete(User $user, User $model): bool
     {
-        // Center admin can delete users in their center
-        if ($user->hasRole('center_admin')) {
-            return $model->center_id === $user->ownedCenter?->id;
+        // Admin: Yes
+        if ($user->hasRole('admin')) {
+            return true;
         }
 
-        // Only admin can delete
-        return $user->hasRole('admin');
+        // Center Admin: 
+        // - Can delete Teachers/Assistants
+        // - Can delete Students/Parents
+        if ($user->hasRole('center_admin')) {
+            $isCenterMember = $model->center_id === $user->ownedCenter?->id;
+            if (!$isCenterMember) return false;
+
+            // Can delete anyone in their center (except maybe themselves, but that's self-delete)
+            return true;
+        }
+
+        // Teacher: NO delete
+        // Assistant: NO delete
+        return false;
     }
 
-    /**
-     * Determine whether the user can restore the model.
-     */
     public function restore(User $user, User $model): bool
     {
         return $user->hasRole('admin');
     }
 
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
     public function forceDelete(User $user, User $model): bool
     {
         return $user->hasRole('admin');

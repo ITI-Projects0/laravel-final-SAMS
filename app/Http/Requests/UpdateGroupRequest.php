@@ -26,6 +26,14 @@ class UpdateGroupRequest extends FormRequest
             'name' => 'sometimes|required|string|max:255',
             'description' => 'nullable|string|max:2000',
             'subject' => 'sometimes|required|string|max:100',
+            'center_id' => 'sometimes|required|exists:centers,id',
+            'teacher_id' => 'sometimes|exists:users,id',
+            'academic_year' => 'nullable|string|max:50',
+            'schedule_days' => 'sometimes|required|array|min:1',
+            'schedule_days.*' => 'string|in:Saturday,Sunday,Monday,Tuesday,Wednesday,Thursday,Friday',
+            'schedule_time' => 'nullable|date_format:H:i',
+            'sessions_count' => 'nullable|integer|min:1|max:100',
+            'is_active' => 'boolean',
         ];
     }
 

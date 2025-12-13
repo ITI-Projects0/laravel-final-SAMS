@@ -7,6 +7,7 @@ use App\Http\Resources\TeacherResource;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class TeacherController extends Controller
@@ -27,19 +28,28 @@ class TeacherController extends Controller
                 $sortBy = 'created_at';
             }
 
-            $teachersQuery = User::role('teacher')
-                ->with(['taughtGroups' => function ($query) {
-                    $query
-                        ->with(['center:id,name'])
-                        ->withCount([
-                            'students',
-                            'pendingStudents',
-                            'lessons',
-                            'attendances as attendance_today_count' => function ($q) {
-                                $q->whereDate('date', today());
-                            },
-                        ]);
-                }])
+            $user = Auth::user();
+            $role = $request->input('role', 'teacher');
+            if (!in_array($role, ['teacher', 'assistant'])) {
+                $role = 'teacher';
+            }
+
+            $teachersQuery = User::role($role)
+                ->with([
+                    'center:id,name',
+                    'taughtGroups' => function ($query) {
+                        $query
+                            ->with(['center:id,name'])
+                            ->withCount([
+                                'students',
+                                'pendingStudents',
+                                'lessons',
+                                'attendances as attendance_today_count' => function ($q) {
+                                    $q->whereDate('date', today());
+                                },
+                            ]);
+                    }
+                ])
                 ->withCount([
                     'taughtGroups',
                     'taughtGroups as approved_students_count' => function ($q) {
@@ -53,6 +63,17 @@ class TeacherController extends Controller
                             ->selectRaw('count(distinct group_students.student_id)');
                     },
                 ]);
+
+            // Scope to center for non-admin users
+            if ($user->hasAnyRole(['center_admin', 'assistant', 'teacher'])) {
+                $centerId = $user->center_id ?? $user->ownedCenter?->id;
+                if ($centerId) {
+                    $teachersQuery->where('center_id', $centerId);
+                } else {
+                    // Safety: if no center assigned, show nothing
+                    $teachersQuery->whereRaw('1 = 0');
+                }
+            }
 
             if ($search) {
                 $teachersQuery->where(function ($query) use ($search) {
@@ -96,19 +117,12 @@ class TeacherController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(\App\Http\Requests\StoreTeacherRequest $request)
     {
         try {
             $this->authorize('create', User::class);
 
-            $validated = $request->validate([
-                'name' => ['required', 'string', 'max:255'],
-                'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-                'password' => ['required', 'string', 'min:8'],
-                'phone' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\\-()\\s]+$/', 'unique:users,phone'],
-                'status' => ['sometimes', 'in:active,inactive'],
-            ]);
-
+            $validated = $request->validated();
             $validated['password'] = Hash::make($validated['password']);
 
             $user = User::create($validated);
@@ -184,24 +198,12 @@ class TeacherController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, User $user)
+    public function update(\App\Http\Requests\UpdateTeacherRequest $request, User $user)
     {
         try {
             $this->authorize('update', $user);
-            $validated = $request->validate([
-                'name' => ['sometimes', 'required', 'string', 'max:255'],
-                'email' => [
-                    'sometimes',
-                    'required',
-                    'email',
-                    'max:255',
-                    Rule::unique('users', 'email')->ignore($user->id),
-                ],
-                'phone' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\\-()\\s]+$/', Rule::unique('users', 'phone')->ignore($user->id)],
-                'status' => ['sometimes', 'in:active,inactive'],
-            ]);
 
-            $user->update($validated);
+            $user->update($request->validated());
 
             return $this->success(
                 data: $user,

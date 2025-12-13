@@ -7,6 +7,9 @@ use App\Http\Resources\UserResource;
 use App\Models\Center;
 use App\Models\Group;
 use App\Models\User;
+use App\Notifications\TeacherAccountCreated;
+use App\Notifications\StudentAccountCreated;
+use App\Notifications\ParentAccountCreated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -90,6 +93,7 @@ class CenterAdminController extends Controller
         $students = $format(
             $applySearch(User::role('student'))
                 ->where('center_id', $centerId)
+                ->with(['parents:id,name,email,phone'])
                 ->orderBy('updated_at', 'desc')
                 ->paginate($pageSize, ['id', 'name', 'email', 'phone', 'status'])
         );
@@ -169,17 +173,22 @@ class CenterAdminController extends Controller
             $centerId = $center->id;
 
             $validated = $request->validated();
+            $password = $validated['password'];
+            $centerAdmin = User::find(Auth::id());
 
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
+                'password' => Hash::make($password),
                 'phone' => $validated['phone'] ?? null,
                 'status' => 'active',
                 'center_id' => $centerId,
             ]);
             $user->assignRole('teacher');
             $user->load('roles');
+
+            // Send welcome email notification to the new teacher
+            $user->notify(new TeacherAccountCreated($password, $centerAdmin));
 
             return $this->success(
                 new UserResource($user),
@@ -249,16 +258,22 @@ class CenterAdminController extends Controller
             'phone' => ['nullable', 'string', 'max:20'],
         ]);
 
+        $password = $validated['password'];
+        $centerAdmin = User::find(Auth::id());
+
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'password' => Hash::make($password),
             'phone' => $validated['phone'] ?? null,
             'status' => 'active',
             'center_id' => $centerId,
         ]);
         $user->assignRole('student');
         $user->load('roles');
+
+        // Send welcome email notification to the new student
+        $user->notify(new StudentAccountCreated($password, $centerAdmin));
 
         return $this->success(
             new UserResource($user),

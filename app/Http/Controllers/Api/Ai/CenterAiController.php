@@ -9,7 +9,9 @@ use Illuminate\Http\Request;
 
 class CenterAiController extends Controller
 {
-    public function __construct(protected CenterAiService $service) {}
+    public function __construct(protected CenterAiService $service)
+    {
+    }
 
     public function insights(Request $request): JsonResponse
     {
@@ -21,14 +23,14 @@ class CenterAiController extends Controller
         try {
             $insights = $this->service->insights($data['class_id'] ?? null, $data['group_id'] ?? null);
         } catch (\Throwable $e) {
-            return response()->json([
-                'message' => 'AI service error.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-                'insights' => '',
-            ], 500);
+            return $this->error(
+                message: 'AI service error.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null
+            );
         }
 
-        return response()->json([
+        return $this->success([
             'insights' => $insights,
         ]);
     }
@@ -43,14 +45,14 @@ class CenterAiController extends Controller
         try {
             $forecast = $this->service->attendanceForecast($data['class_id'] ?? null, $data['group_id'] ?? null);
         } catch (\Throwable $e) {
-            return response()->json([
-                'message' => 'AI service error.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
-                'forecast' => '',
-            ], 500);
+            return $this->error(
+                message: 'AI service error.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null
+            );
         }
 
-        return response()->json([
+        return $this->success([
             'forecast' => $forecast,
         ]);
     }

@@ -18,10 +18,16 @@ class NotificationController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate($request->get('per_page', 15));
 
-        return response()->json([
-            'success' => true,
-            'data' => $notifications,
-        ]);
+        return $this->success(
+            data: \App\Http\Resources\NotificationResource::collection($notifications),
+            message: 'Notifications retrieved successfully.',
+            meta: [
+                'current_page' => $notifications->currentPage(),
+                'per_page' => $notifications->perPage(),
+                'total' => $notifications->total(),
+                'last_page' => $notifications->lastPage(),
+            ]
+        );
     }
 
     /**
@@ -36,10 +42,10 @@ class NotificationController extends Controller
             ->limit(10)
             ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $notifications,
-        ]);
+        return $this->success(
+            data: \App\Http\Resources\NotificationResource::collection($notifications),
+            message: 'Latest notifications retrieved successfully.'
+        );
     }
 
     /**
@@ -51,10 +57,10 @@ class NotificationController extends Controller
 
         $count = $user->unreadNotifications()->count();
 
-        return response()->json([
-            'success' => true,
-            'count' => $count,
-        ]);
+        return $this->success(
+            data: ['count' => $count],
+            message: 'Unread notifications count retrieved successfully.'
+        );
     }
 
     /**
@@ -70,11 +76,10 @@ class NotificationController extends Controller
             $notification->markAsRead();
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Notification marked as read',
-            'notification' => $notification,
-        ]);
+        return $this->success(
+            data: new \App\Http\Resources\NotificationResource($notification),
+            message: 'Notification marked as read'
+        );
     }
 
     /**
@@ -86,10 +91,9 @@ class NotificationController extends Controller
 
         $user->unreadNotifications->markAsRead();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'All notifications marked as read',
-        ]);
+        return $this->success(
+            message: 'All notifications marked as read'
+        );
     }
 
     /**
@@ -102,10 +106,9 @@ class NotificationController extends Controller
         $notification = $user->notifications()->findOrFail($id);
         $notification->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Notification deleted',
-        ]);
+        return $this->success(
+            message: 'Notification deleted'
+        );
     }
 
     /**
@@ -117,9 +120,8 @@ class NotificationController extends Controller
 
         $user->notifications()->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'All notifications deleted',
-        ]);
+        return $this->success(
+            message: 'All notifications deleted'
+        );
     }
 }

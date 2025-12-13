@@ -8,23 +8,25 @@ use Illuminate\Http\Request;
 
 class AiChatController extends Controller
 {
-    public function __construct(protected AiClient $ai) {}
+    public function __construct(protected AiClient $ai)
+    {
+    }
 
     public function chat(Request $request)
     {
         $data = $request->validate([
-            'role'    => 'required|string|in:teacher,parent',
+            'role' => 'required|string|in:teacher,parent',
             'message' => 'required|string|max:2000',
             'user_id' => 'nullable|integer',
         ]);
 
         $messages = [
             [
-                'role'    => 'system',
+                'role' => 'system',
                 'content' => $this->buildSystemPrompt($data['role']),
             ],
             [
-                'role'    => 'user',
+                'role' => 'user',
                 'content' => $data['message'],
             ],
         ];
@@ -32,14 +34,14 @@ class AiChatController extends Controller
         try {
             $reply = $this->ai->chat($messages);
         } catch (\Throwable $e) {
-            return response()->json([
-                'message' => 'AI service error.',
-                'error'   => config('app.debug') ? $e->getMessage() : null,
-                'reply'   => '',
-            ], 500);
+            return $this->error(
+                message: 'AI service error.',
+                status: 500,
+                errors: config('app.debug') ? $e->getMessage() : null
+            );
         }
 
-        return response()->json([
+        return $this->success([
             'reply' => $reply,
         ]);
     }

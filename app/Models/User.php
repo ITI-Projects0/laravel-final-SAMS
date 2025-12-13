@@ -31,6 +31,7 @@ class User extends Authenticatable
         'google_id',
         'center_id',
         'avatar',
+        'email_verified_at',
     ];
     protected $guard_name = 'api';
 

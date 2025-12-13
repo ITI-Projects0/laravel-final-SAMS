@@ -216,6 +216,10 @@ class UserController extends Controller
     public function destroy(string $id)
     {
         $user = User::findOrFail($id);
+
+        // Revoke all tokens to force logout
+        $user->tokens()->delete();
+
         $user->delete();
 
         return $this->success(

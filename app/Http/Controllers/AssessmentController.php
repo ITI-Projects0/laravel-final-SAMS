@@ -5,9 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Assessment;
 use App\Http\Requests\StoreAssessmentRequest;
 use App\Http\Requests\UpdateAssessmentRequest;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use App\Notifications\NewAssignmentCreated;
 
 class AssessmentController extends Controller
 {
+    use AuthorizesRequests;
+
     /**
      * Display a listing of the resource.
      */
@@ -29,7 +33,20 @@ class AssessmentController extends Controller
      */
     public function store(StoreAssessmentRequest $request, \App\Models\Lesson $lesson)
     {
-        // $this->authorize('create', Assessment::class); // Assuming policy exists or we skip for now
+        $this->authorize('create', Assessment::class);
+
+        // Additional check: Ensure the user can actually add an assessment to THIS lesson's group
+        if (auth()->user()->hasRole('teacher')) {
+            if ($lesson->group->teacher_id !== auth()->id()) {
+                abort(403, 'You can only add assessments to your own groups.');
+            }
+        }
+        // If Assistant, ensure lesson is in their center
+        if (auth()->user()->hasRole('assistant')) {
+            if ($lesson->group->center_id !== auth()->user()->center_id) {
+                abort(403, 'You can only add assessments to groups in your center.');
+            }
+        }
 
         $data = $request->validated();
         $data['lesson_id'] = $lesson->id;
@@ -47,20 +64,31 @@ class AssessmentController extends Controller
 
         $assessment = Assessment::create($data);
 
-        return response()->json([
-            'message' => 'Assessment created successfully.',
-            'data' => $assessment
-        ], 201);
+        // Send notifications to parents about the new assignment
+        if ($group) {
+            $students = $group->students()->wherePivot('status', 'approved')->get();
+            foreach ($students as $student) {
+                $parents = $student->parents;
+                foreach ($parents as $parent) {
+                    $parent->notify(new NewAssignmentCreated($student, $assessment, $group));
+                }
+            }
+        }
+
+        return $this->success(
+            data: new \App\Http\Resources\AssessmentResource($assessment),
+            message: 'Assessment created successfully.',
+            status: 201
+        );
     }
 
     /**
      * Display the specified resource.
      */
-    /**
-     * Display the specified resource.
-     */
     public function show(Assessment $assessment)
     {
+        $this->authorize('view', $assessment);
+
         $assessment->load(['results']);
         $group = $assessment->group;
 
@@ -79,36 +107,34 @@ class AssessmentController extends Controller
             return $student;
         });
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'assessment' => $assessment,
-                'students' => $students
-            ]
+        return $this->success([
+            'assessment' => new \App\Http\Resources\AssessmentResource($assessment),
+            'students' => $students
         ]);
     }
 
-    public function storeResult(\Illuminate\Http\Request $request, Assessment $assessment)
+    public function storeResult(\App\Http\Requests\StoreAssessmentResultRequest $request, Assessment $assessment)
     {
-        $data = $request->validate([
-            'student_id' => 'required|exists:users,id',
-            'score' => 'required|numeric|min:0|max:' . $assessment->max_score,
-            'feedback' => 'nullable|string'
-        ]);
+        // Grading is considered an update action on the assessment context
+        $this->authorize('update', $assessment);
+
+        $data = $request->validated();
 
         $result = $assessment->results()->updateOrCreate(
             ['student_id' => $data['student_id']],
             ['score' => $data['score'], 'feedback' => $data['feedback'] ?? null]
         );
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Grade saved successfully.',
-            'data' => $result
-        ]);
+        return $this->success(
+            data: $result,
+            message: 'Grade saved successfully.'
+        );
     }
+
     public function update(UpdateAssessmentRequest $request, Assessment $assessment)
     {
+        $this->authorize('update', $assessment);
+
         $data = $request->validated();
 
         if (!isset($data['max_score'])) {
@@ -117,20 +143,20 @@ class AssessmentController extends Controller
 
         $assessment->update($data);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Assessment updated successfully.',
-            'data' => $assessment
-        ]);
+        return $this->success(
+            data: new \App\Http\Resources\AssessmentResource($assessment),
+            message: 'Assessment updated successfully.'
+        );
     }
 
     public function destroy(Assessment $assessment)
     {
+        $this->authorize('delete', $assessment);
+
         $assessment->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Assessment deleted successfully.'
-        ]);
+        return $this->success(
+            message: 'Assessment deleted successfully.'
+        );
     }
 }

@@ -55,6 +55,7 @@ class ParentDashboardController extends Controller
         $children = $parent->children()
             ->select('users.id', 'users.name', 'users.email', 'users.avatar', 'users.center_id')
             ->with('center:id,name')
+            ->withCount('courses') // Count enrolled groups
             ->paginate($perPage, ['*'], 'page', $page);
 
         $children->getCollection()->transform(function ($child) {
@@ -67,10 +68,118 @@ class ParentDashboardController extends Controller
                     'id' => $child->center->id,
                     'name' => $child->center->name,
                 ] : null,
+                'classes_count' => $child->courses_count,
             ];
         });
 
         return $this->success($children->items(), 'Children list retrieved successfully.', meta: $this->meta($children));
+    }
+
+    public function childClassDetails(User $child, Group $group): \Illuminate\Http\JsonResponse
+    {
+        $parent = $this->parent();
+        if (!$parent->children()->where('users.id', $child->id)->exists()) {
+            return $this->error('This student is not linked to your account.', 403);
+        }
+
+        if (!$child->courses()->where('groups.id', $group->id)->exists()) {
+            return $this->error('Student is not enrolled in this class.', 404);
+        }
+
+        $group->load(['teacher:id,name']);
+
+        // Attendance Stats
+        $attendanceStats = Attendance::query()
+            ->where('student_id', $child->id)
+            ->where('group_id', $group->id)
+            ->selectRaw('SUM(CASE WHEN status = "present" THEN 1 ELSE 0 END) as present_count, COUNT(*) as total_count')
+            ->first();
+
+        $attendanceRate = ($attendanceStats && $attendanceStats->total_count > 0)
+            ? round(($attendanceStats->present_count / $attendanceStats->total_count) * 100, 1)
+            : 0;
+
+        // Assignments Stats
+        $assignments = AssessmentResult::query()
+            ->where('student_id', $child->id)
+            ->whereHas('assessment', fn($q) => $q->where('group_id', $group->id))
+            ->get();
+
+        $totalAssignments = Assessment::where('group_id', $group->id)->count();
+        $completedAssignments = $assignments->count();
+        $averageGrade = $assignments->count() > 0 ? round($assignments->avg('score'), 1) : 0;
+
+        // Class Rank (Mock logic for now, or simple calculation)
+        // Calculating rank based on average score of all students in the group
+        $groupStudents = $group->students()->pluck('users.id');
+        $studentScores = AssessmentResult::query()
+            ->whereIn('student_id', $groupStudents)
+            ->whereHas('assessment', fn($q) => $q->where('group_id', $group->id))
+            ->selectRaw('student_id, AVG(score) as avg_score')
+            ->groupBy('student_id')
+            ->orderByDesc('avg_score')
+            ->get();
+
+        $rank = $studentScores->search(fn($item) => $item->student_id === $child->id);
+        $classRank = $rank !== false ? $rank + 1 : '-';
+
+        // Next Class
+        $nextClass = Lesson::query()
+            ->where('group_id', $group->id)
+            ->where('scheduled_at', '>=', now())
+            ->orderBy('scheduled_at')
+            ->first();
+
+        // Exams/Assessments List
+        $exams = Assessment::query()
+            ->where('group_id', $group->id)
+            ->with(['results' => fn($q) => $q->where('student_id', $child->id)])
+            ->orderByDesc('scheduled_at')
+            ->limit(10)
+            ->get()
+            ->map(function ($exam) {
+                $result = $exam->results->first();
+                return [
+                    'id' => $exam->id,
+                    'title' => $exam->title,
+                    'date' => $exam->scheduled_at,
+                    'score' => $result ? $result->score : null,
+                    'total' => $exam->max_score,
+                    'feedback' => $result ? $result->feedback : null,
+                ];
+            });
+
+        // Attendance Records
+        $attendanceRecords = Attendance::query()
+            ->where('student_id', $child->id)
+            ->where('group_id', $group->id)
+            ->orderByDesc('date')
+            ->limit(10)
+            ->get()
+            ->map(function ($record) {
+                return [
+                    'date' => $record->date,
+                    'status' => $record->status,
+                ];
+            });
+
+        return $this->success([
+            'studentName' => $child->name,
+            'className' => $group->name,
+            'teacherName' => $group->teacher->name ?? 'Unknown',
+            'subject' => $group->subject,
+            'description' => $group->description,
+            'scheduleDays' => $group->schedule_days ?? [],
+            'scheduleTime' => $group->schedule_time ? Carbon::parse($group->schedule_time)->format('H:i') : null,
+            'attendance' => $attendanceRate,
+            'averageGrade' => $averageGrade,
+            'completedAssignments' => $completedAssignments,
+            'totalAssignments' => $totalAssignments,
+            'classRank' => $classRank,
+            'nextClassTime' => $nextClass ? Carbon::parse($nextClass->scheduled_at)->format('D, M j, g:i A') : 'Not scheduled',
+            'exams' => $exams,
+            'attendanceRecords' => $attendanceRecords,
+        ], 'Class details retrieved successfully.');
     }
 
     public function childShow(User $child): \Illuminate\Http\JsonResponse
@@ -287,7 +396,7 @@ class ParentDashboardController extends Controller
                     'teacher_name' => $lesson->group->teacher->name ?? null,
                 ] : null,
                 'students' => $lesson->group && $lesson->group->relationLoaded('students')
-                    ? $lesson->group->students->map(fn ($student) => [
+                    ? $lesson->group->students->map(fn($student) => [
                         'id' => $student->id,
                         'name' => $student->name,
                     ])->values()

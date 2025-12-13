@@ -11,11 +11,14 @@ use Illuminate\Support\Facades\Auth;
 
 class LessonController extends Controller
 {
+    use \Illuminate\Foundation\Auth\Access\AuthorizesRequests;
     /**
      * List lessons for a given group (teacher/assistant/admin).
      */
     public function index(Group $group)
     {
+        // Ensure user can view the group first (scoping check)
+        $this->authorize('view', $group);
         $this->authorize('viewAny', Lesson::class);
 
         $lessons = Lesson::where('group_id', $group->id)
@@ -32,6 +35,8 @@ class LessonController extends Controller
      */
     public function store(StoreLessonRequest $request, Group $group)
     {
+        // Ensure user can update the group (teacher/assistant of this group)
+        $this->authorize('update', $group);
         $this->authorize('create', Lesson::class);
 
         $data = $request->validated();
@@ -57,7 +62,7 @@ class LessonController extends Controller
     /**
      * Update the specified resource.
      */
-    public function update(StoreLessonRequest $request, Lesson $lesson)
+    public function update(\App\Http\Requests\UpdateLessonRequest $request, Lesson $lesson)
     {
         $this->authorize('update', $lesson);
 

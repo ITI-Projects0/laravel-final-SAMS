@@ -4,10 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\BroadcastsEvents;
 
 class Notification extends Model
 {
-    use HasFactory;
+    use HasFactory, HasUuids, BroadcastsEvents;
+
+    protected $primaryKey = 'id';
+    protected $keyType = 'string';
+    public $incrementing = false;
 
     protected $fillable = [
         'type',
@@ -18,9 +24,14 @@ class Notification extends Model
     ];
 
     protected $casts = [
-        'data' => 'array',
+        'data'    => 'array',
         'read_at' => 'datetime',
     ];
+
+    public function broadcastOn($event)
+    {
+        return ['private-App.Models.User.'.$this->notifiable_id];
+    }
 
     public function notifiable()
     {
