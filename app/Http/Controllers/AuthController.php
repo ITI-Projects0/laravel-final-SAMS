@@ -155,6 +155,7 @@ class AuthController extends Controller
                 'password' => Hash::make(Str::random(16)), // random password
                 'google_id' => $googleUser->getId(),
                 'email_verified_at' => now(),
+                'activation_code' => (string) Str::uuid(),
                 'status' => 'active',
                 'approval_status' => 'pending', // يحتاج موافقة
             ]);
@@ -217,6 +218,15 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
+        \App\Models\ActivityLog::create([
+            'user_id' => $user->id,
+            'action' => 'login',
+            'subject_type' => 'User',
+            'subject_id' => $user->id,
+            'description' => "User logged in via Google: {$user->name}",
+            'ip_address' => $request->ip(),
+        ]);
+
         return $this->success([
             'user' => $this->userPayload($user),
             'token' => $this->maybeIssueToken($user, $request),
@@ -235,6 +245,15 @@ class AuthController extends Controller
 
         if ($user->status !== 'active') {
             return $this->error(message: 'Account is not active.', status: 403);
+        }
+
+        // Check if the user belongs to a center and if that center is inactive
+        if ($user->center_id && $user->center && !$user->center->is_active) {
+            return $this->error(
+                message: 'Your center is blocked, Please Contact Us.',
+                status: 403,
+                errors: ['code' => 'center_inactive']
+            );
         }
 
         // Check approval status for center_admin users
@@ -258,6 +277,15 @@ class AuthController extends Controller
         }
 
         $request->session()->regenerate();
+
+        \App\Models\ActivityLog::create([
+            'user_id' => $user->id,
+            'action' => 'login',
+            'subject_type' => 'User',
+            'subject_id' => $user->id,
+            'description' => "User logged in: {$user->name}",
+            'ip_address' => $request->ip(),
+        ]);
 
         return $this->success([
             'user' => $this->userPayload($user),

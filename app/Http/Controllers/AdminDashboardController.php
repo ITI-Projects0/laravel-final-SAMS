@@ -26,10 +26,9 @@ class AdminDashboardController extends Controller
 
         // Paginate recent activity
         $perPage = request('per_page', 10);
-        $recentQuery = Group::with(['center:id,name', 'teacher:id,name'])
-            ->latest()
-            ->select(['id', 'name', 'created_at', 'center_id', 'teacher_id']);
-        
+        $recentQuery = \App\Models\ActivityLog::latest()
+            ->select(['id', 'description as name', 'created_at']); // Mapping description to name for frontend compatibility
+
         $recentPaginated = $recentQuery->paginate($perPage);
 
         return $this->success([
