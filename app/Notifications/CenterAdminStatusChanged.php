@@ -13,11 +13,13 @@ class CenterAdminStatusChanged extends Notification implements ShouldQueue
 
     public $status;
     public $reason;
+    public $userName;
 
-    public function __construct(string $status, ?string $reason = null)
+    public function __construct(string $status, ?string $reason = null, ?string $userName = null)
     {
         $this->status = $status;
         $this->reason = $reason;
+        $this->userName = $userName;
     }
 
     /**
@@ -25,7 +27,9 @@ class CenterAdminStatusChanged extends Notification implements ShouldQueue
      */
     public function via($notifiable): array
     {
-        return ['database', 'mail'];
+        return $notifiable instanceof \Illuminate\Notifications\AnonymousNotifiable
+            ? ['mail']
+            : ['database', 'mail'];
     }
 
     /**
@@ -54,10 +58,16 @@ class CenterAdminStatusChanged extends Notification implements ShouldQueue
     public function toMail($notifiable): MailMessage
     {
         $isApproved = $this->status === 'approved';
+        
+        $name = $this->userName;
+        if (!$name && isset($notifiable->name)) {
+            $name = $notifiable->name;
+        }
+        $name = $name ?? 'User';
 
         $mail = (new MailMessage)
             ->subject($isApproved ? 'Application Approved - SAMS' : 'Application Rejected - SAMS')
-            ->greeting("Hello {$notifiable->name},");
+            ->greeting("Hello {$name},");
 
         if ($isApproved) {
             $mail->line('Your center admin registration has been approved.')

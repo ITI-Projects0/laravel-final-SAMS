@@ -9,6 +9,7 @@ use App\Models\Lesson;
 use App\Models\User;
 use App\Notifications\StudentAccountCreated;
 use App\Notifications\StudentAddedToGroup;
+use App\Notifications\ParentAccountCreated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -144,10 +145,16 @@ class CenterAdminManagementController extends Controller
                 $studentIds = $this->collectParentStudentIds($validated);
                 $this->assertStudentsBelongToCenter($studentIds, $center);
                 $this->attachParentToStudents($user, $studentIds);
+
+                // Send notification to parent with credentials
+                $firstStudent = User::find($studentIds->first());
+                if ($firstStudent) {
+                    $user->notify(new ParentAccountCreated($password, $firstStudent));
+                }
             }
 
-            // Send email with credentials for non-student roles
-            if ($validated['role'] !== 'student') {
+            // Send email with credentials for non-student and non-parent roles
+            if (!in_array($validated['role'], ['student', 'parent'])) {
                 Mail::to($user->email)->send(new NewAccountMail($user, $password, $this->frontendLoginUrl()));
             }
 

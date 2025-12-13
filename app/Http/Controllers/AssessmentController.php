@@ -6,6 +6,7 @@ use App\Models\Assessment;
 use App\Http\Requests\StoreAssessmentRequest;
 use App\Http\Requests\UpdateAssessmentRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use App\Notifications\NewAssignmentCreated;
 
 class AssessmentController extends Controller
 {
@@ -62,6 +63,17 @@ class AssessmentController extends Controller
         }
 
         $assessment = Assessment::create($data);
+
+        // Send notifications to parents about the new assignment
+        if ($group) {
+            $students = $group->students()->wherePivot('status', 'approved')->get();
+            foreach ($students as $student) {
+                $parents = $student->parents;
+                foreach ($parents as $parent) {
+                    $parent->notify(new NewAssignmentCreated($student, $assessment, $group));
+                }
+            }
+        }
 
         return $this->success(
             data: new \App\Http\Resources\AssessmentResource($assessment),

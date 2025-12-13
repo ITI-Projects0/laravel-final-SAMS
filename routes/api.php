@@ -181,8 +181,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // ==========================================
     // Center Admin (Existing Scoped APIs)
     // ==========================================
-    Route::prefix('center-admin')->middleware('role:center_admin')->group(function () {
+    Route::prefix('center-admin')->middleware('role:center_admin|teacher|assistant')->group(function () {
         Route::get('/members', [CenterAdminController::class, 'members']); // Full members list
+    });
+
+    Route::prefix('center-admin')->middleware('role:center_admin')->group(function () {
         Route::get('/groups', [CenterAdminController::class, 'groups']);   // All groups for center
         Route::delete('/groups/{group}', [GroupController::class, 'destroy']); // Delete group
 

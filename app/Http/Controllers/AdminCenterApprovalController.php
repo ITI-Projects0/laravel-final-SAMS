@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Center;
 use App\Notifications\CenterAdminStatusChanged;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 
 /**
  * Controller for managing center admin approval workflow.
@@ -109,24 +110,28 @@ class AdminCenterApprovalController extends Controller
                 return $this->error('User is not pending approval.', 400);
             }
 
-            $user->approval_status = 'rejected';
-            $user->save();
+            // Capture data for notification
+            $email = $user->email;
+            $name = $user->name;
+            $reason = $validated['reason'] ?? null;
 
-            // Keep center inactive
+            // Send notification immediately to the email address
+            // This ensures the user gets notified even though we are about to delete their account
+            Notification::route('mail', $email)
+                ->notify(new CenterAdminStatusChanged('rejected', $reason, $name));
+
+            // Delete center if exists
             if ($user->ownedCenter) {
-                $user->ownedCenter->is_active = false;
-                $user->ownedCenter->save();
+                $user->ownedCenter->delete();
             }
 
-            // Send notification to the user (email + database)
-            $reason = $validated['reason'] ?? null;
-            $user->notify(new CenterAdminStatusChanged('rejected', $reason));
-
-            $user->load(['ownedCenter', 'roles']);
+            // Delete the user account completely
+            // This ensures they can register again with the same email
+            $user->delete();
 
             return $this->success(
-                data: new UserResource($user),
-                message: 'Center admin rejected successfully.'
+                data: null,
+                message: 'Center admin rejected and all associated data deleted successfully.'
             );
         } catch (\Exception $e) {
             return $this->error(

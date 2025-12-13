@@ -26,7 +26,25 @@ class TeacherAccountCreated extends Notification implements ShouldQueue
      */
     public function via($notifiable): array
     {
-        return ['mail'];
+        return ['database', 'mail'];
+    }
+
+    /**
+     * Get the array representation of the notification (for database).
+     */
+    public function toArray($notifiable): array
+    {
+        return [
+            'type' => 'teacher_account_created',
+            'title' => 'Welcome to SAMS',
+            'message' => "Your teacher account has been created by {$this->centerAdmin->name}. You can now login and start managing your groups.",
+            'created_by' => [
+                'id' => $this->centerAdmin->id,
+                'name' => $this->centerAdmin->name,
+            ],
+            'icon' => 'academic-cap',
+            'created_at' => now()->toISOString(),
+        ];
     }
 
     /**

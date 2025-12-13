@@ -9,6 +9,7 @@ use App\Models\Group;
 use App\Models\User;
 use App\Notifications\StudentAccountCreated;
 use App\Notifications\StudentAddedToGroup;
+use App\Notifications\ParentAccountCreated;
 use App\Services\GroupScheduleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -187,10 +188,13 @@ class TeacherManagementController extends Controller
                 $newUser->children()->attach($student->id, [
                     'relationship' => 'parent',
                 ]);
+
+                // Send notification to parent with credentials
+                $newUser->notify(new ParentAccountCreated($password, $student));
             }
 
-            // Send email with credentials
-            if ($validated['role'] !== 'student') {
+            // Send email with credentials (for roles other than student and parent)
+            if (!in_array($validated['role'], ['student', 'parent'])) {
                 Mail::to($newUser->email)->send(new NewAccountMail($newUser, $password, $this->frontendLoginUrl()));
             }
 
