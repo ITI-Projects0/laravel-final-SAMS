@@ -8,6 +8,7 @@ use App\Http\Requests\StoreGroupRequest;
 use App\Http\Requests\UpdateGroupRequest;
 use App\Models\User;
 use App\Models\Lesson;
+use App\Notifications\GroupUpdated;
 use App\Notifications\NewGroupCreated;
 use App\Notifications\GroupUpdated;
 use Illuminate\Support\Arr;
@@ -279,6 +280,12 @@ class GroupController extends Controller
                 ->where('status', 'approved')
                 ->count();
             $group->setAttribute('students_count', $studentsCount);
+
+            if (!empty($changedFields)) {
+                $group->students()->each(function ($student) use ($group, $changedFields) {
+                    $student->notify(new GroupUpdated($group, $changedFields));
+                });
+            }
 
             return $this->success(
                 data: $group,
