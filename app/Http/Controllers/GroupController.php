@@ -8,6 +8,7 @@ use App\Http\Requests\StoreGroupRequest;
 use App\Http\Requests\UpdateGroupRequest;
 use App\Models\User;
 use App\Models\Lesson;
+use App\Notifications\GroupUpdated;
 use App\Notifications\NewGroupCreated;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
@@ -188,6 +189,11 @@ class GroupController extends Controller
             $data = $request->validated();
             $group->update($data);
 
+            $changedFields = array_intersect_key(
+                $group->getChanges(),
+                array_flip(['name','description','subject','schedule_days','schedule_time','sessions_count','is_active','academic_year','teacher_id',])
+            );
+
             // Regenerate lessons if sessions_count or schedule changes are provided
             $sessionCount = $data['sessions_count'] ?? null;
             $scheduleDays = $data['schedule_days'] ?? null;
@@ -228,6 +234,12 @@ class GroupController extends Controller
                 ->where('status', 'approved')
                 ->count();
             $group->setAttribute('students_count', $studentsCount);
+
+            if (!empty($changedFields)) {
+                $group->students()->each(function ($student) use ($group, $changedFields) {
+                    $student->notify(new GroupUpdated($group, $changedFields));
+                });
+            }
 
             return $this->success(
                 data: $group,
