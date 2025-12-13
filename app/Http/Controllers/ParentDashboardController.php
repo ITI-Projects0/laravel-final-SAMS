@@ -145,6 +145,7 @@ class ParentDashboardController extends Controller
                     'date' => $exam->scheduled_at,
                     'score' => $result ? $result->score : null,
                     'total' => $exam->max_score,
+                    'feedback' => $result ? $result->feedback : null,
                 ];
             });
 

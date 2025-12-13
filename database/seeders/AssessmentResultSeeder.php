@@ -16,7 +16,10 @@ class AssessmentResultSeeder extends Seeder
     {
         $faker = fake();
 
-        foreach (Assessment::all() as $assessment) {
+        // Only generate results for past assessments
+        $pastAssessments = Assessment::where('scheduled_at', '<', now())->get();
+
+        foreach ($pastAssessments as $assessment) {
             $memberIds = GroupStudent::where('group_id', $assessment->group_id)
                 ->pluck('student_id');
 

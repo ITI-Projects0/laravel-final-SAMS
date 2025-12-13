@@ -40,7 +40,7 @@ class GroupStudentSeeder extends Seeder
                 ], [
                     'status' => 'approved',
                     'is_pay' => $faker->boolean(85),
-                    'joined_at' => Carbon::now()->subDays($faker->numberBetween(15, 120))->toDateString(),
+                    'joined_at' => Carbon::create(2025, 7, 1)->addDays($faker->numberBetween(0, 14))->toDateString(),
                 ]);
             }
         }

@@ -14,29 +14,32 @@ class AssessmentSeeder extends Seeder
 
     public function run(): void
     {
-        $faker = fake();
-
-        foreach (Group::with('lessons')->get() as $group) {
+        foreach (Group::with([
+            'lessons' => function ($q) {
+                $q->orderBy('scheduled_at');
+            }
+        ])->get() as $group) {
             $lessons = $group->lessons;
             if ($lessons->isEmpty()) {
                 continue;
             }
 
-            foreach (range(1, SeedBlueprints::assessmentsPerGroup()) as $index) {
-                $lesson = $lessons->random();
-                $template = $this->pickTemplate();
-                $scheduledAt = $lesson->scheduled_at
-                    ? $lesson->scheduled_at->copy()->addDays($faker->numberBetween(1, 3))
-                    : Carbon::now()->addDays($faker->numberBetween(1, 3));
+            // Create an assessment roughly every 4 lessons
+            foreach ($lessons as $index => $lesson) {
+                if (($index + 1) % 4 === 0) {
+                    $template = $this->pickTemplate();
+                    // Schedule assessment 2 days after the lesson
+                    $scheduledAt = $lesson->scheduled_at->copy()->addDays(2);
 
-                Assessment::create([
-                    'center_id' => $group->center_id,
-                    'group_id' => $group->id,
-                    'lesson_id' => $lesson->id,
-                    'title' => "{$template} {$index}",
-                    'max_score' => 100,
-                    'scheduled_at' => $scheduledAt,
-                ]);
+                    Assessment::create([
+                        'center_id' => $group->center_id,
+                        'group_id' => $group->id,
+                        'lesson_id' => $lesson->id,
+                        'title' => "{$template} - " . ($index + 1),
+                        'max_score' => 100,
+                        'scheduled_at' => $scheduledAt,
+                    ]);
+                }
             }
         }
     }

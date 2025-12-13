@@ -33,11 +33,23 @@ class StudentDashboardController extends Controller
             ->take(3);
 
         $assignments = $student->assignments()
-            ->with('group:id,name')
+            ->with(['group:id,name', 'results' => function ($query) use ($student) {
+                $query->where('student_id', $student->id);
+            }])
             ->latest('scheduled_at')
             ->get()
-            ->map
-            ->only(['center_id', 'group_id', 'title', 'max_score', 'scheduled_at']);
+            ->map(function ($assignment) {
+                $result = $assignment->results->first();
+                return [
+                    'center_id' => $assignment->center_id,
+                    'group_id' => $assignment->group_id,
+                    'title' => $assignment->title,
+                    'max_score' => $assignment->max_score,
+                    'scheduled_at' => $assignment->scheduled_at,
+                    'score' => $result ? $result->score : null,
+                    'feedback' => $result ? $result->feedback : null,
+                ];
+            });
 
         $upcomingAssignments = $assignments->filter(function ($assignment) {
             return $assignment['scheduled_at'] !== null && $assignment['scheduled_at'] >= now();
@@ -107,8 +119,18 @@ class StudentDashboardController extends Controller
             ->get(['id', 'title', 'description', 'scheduled_at', 'group_id']);
 
         $assignments = $group->assessments()
+            ->with(['results' => function ($query) use ($student) {
+                $query->where('student_id', $student->id);
+            }])
             ->orderBy('scheduled_at')
-            ->get(['id', 'title', 'max_score', 'scheduled_at', 'center_id', 'group_id']);
+            ->get(['id', 'title', 'max_score', 'scheduled_at', 'center_id', 'group_id'])
+            ->map(function ($assessment) {
+                $result = $assessment->results->first();
+                $assessment->score = $result ? $result->score : null;
+                $assessment->feedback = $result ? $result->feedback : null;
+                unset($assessment->results);
+                return $assessment;
+            });
 
         return $this->success([
             'course' => [

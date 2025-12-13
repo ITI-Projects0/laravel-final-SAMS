@@ -19,9 +19,10 @@ class AttendanceSeeder extends Seeder
         $faker = fake();
         $statuses = SeedBlueprints::attendanceStatuses();
 
-        foreach (Group::with('lessons')->get() as $group) {
-            $lessonIds = $group->lessons->pluck('id')->all();
-            if (empty($lessonIds)) {
+        foreach (Group::with(['lessons', 'students'])->get() as $group) {
+            $pastLessons = $group->lessons->where('scheduled_at', '<', Carbon::now());
+            
+            if ($pastLessons->isEmpty()) {
                 continue;
             }
 
@@ -38,21 +39,19 @@ class AttendanceSeeder extends Seeder
                 continue;
             }
 
-            $members = GroupStudent::where('group_id', $group->id)->get();
-
-            foreach ($members as $membership) {
-                $attendanceCount = $faker->numberBetween(2, 5);
-                foreach (range(1, $attendanceCount) as $_) {
+            foreach ($pastLessons as $lesson) {
+                foreach ($group->students as $student) {
+                    // 90% chance of being present
+                    $status = $faker->boolean(90) ? 'present' : $faker->randomElement(['absent', 'late', 'excused']);
+                    
                     Attendance::firstOrCreate([
                         'group_id' => $group->id,
-                        'student_id' => $membership->student_id,
-                        'date' => Carbon::now()
-                            ->subDays($faker->numberBetween(3, 21))
-                            ->toDateString(),
+                        'student_id' => $student->id,
+                        'lesson_id' => $lesson->id,
                     ], [
                         'center_id' => $group->center_id,
-                        'lesson_id' => $faker->randomElement($lessonIds),
-                        'status' => $faker->randomElement($statuses),
+                        'date' => $lesson->scheduled_at->toDateString(),
+                        'status' => $status,
                         'marked_by' => $staffPool->random(),
                     ]);
                 }
